@@ -6,4 +6,5 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.5.54", features = ["derive"] }
 sysinfo = "0.37.2"
+colored = "2.0"
 
