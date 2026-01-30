@@ -7,4 +7,5 @@ edition = "2024"
 clap = { version = "4.5.54", features = ["derive"] }
 sysinfo = "0.37.2"
 colored = "2.0"
+sqlparser = "0.60.0"
 
