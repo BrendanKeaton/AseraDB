@@ -1,5 +1,6 @@
 use std::fmt;
 
+// ========== Command Enum ==========
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
     INSERT,
@@ -22,6 +23,19 @@ impl Command {
     }
 }
 
+impl fmt::Display for Command {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Command::INSERT => write!(f, "INSERT"),
+            Command::SELECT => write!(f, "SELECT"),
+            Command::DELETE => write!(f, "DELETE"),
+            Command::CREATE => write!(f, "CREATE"),
+            Command::EXIT => write!(f, "EXIT"),
+        }
+    }
+}
+
+// ========== Filter Enum ==========
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Filter {
     FROM,
@@ -45,6 +59,17 @@ impl Filter {
     }
 }
 
+impl fmt::Display for Filter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Filter::FROM => write!(f, "FROM"),
+            Filter::WHERE => write!(f, "WHERE"),
+            Filter::INTO => write!(f, "INTO"),
+        }
+    }
+}
+
+// ========== ValueTypes Enum ==========
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueTypes {
     String(String),
@@ -66,6 +91,16 @@ impl ValueTypes {
     }
 }
 
+impl fmt::Display for ValueTypes {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ValueTypes::String(s) => write!(f, "{}", s),
+            ValueTypes::Number(n) => write!(f, "{}", n),
+        }
+    }
+}
+
+// ========== Operand Enum ==========
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Operand {
     #[default]
@@ -91,6 +126,20 @@ impl Operand {
     }
 }
 
+impl fmt::Display for Operand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Operand::EQ => write!(f, "="),
+            Operand::GE => write!(f, ">"),
+            Operand::GTE => write!(f, ">="),
+            Operand::LT => write!(f, "<"),
+            Operand::LTE => write!(f, "<="),
+            Operand::NQ => write!(f, "!="),
+        }
+    }
+}
+
+// ========== Syntax Enum ==========
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Syntax {
     COMMA,
@@ -107,59 +156,6 @@ impl Syntax {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TokenType {
-    CMD(Command),
-    OP(Operand),
-    FILTER(Filter),
-    VALUE(ValueTypes),
-    SYNTAX(Syntax),
-}
-
-impl fmt::Display for Command {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Command::INSERT => write!(f, "INSERT"),
-            Command::SELECT => write!(f, "SELECT"),
-            Command::DELETE => write!(f, "DELETE"),
-            Command::CREATE => write!(f, "CREATE"),
-            Command::EXIT => write!(f, "EXIT"),
-        }
-    }
-}
-
-impl fmt::Display for Filter {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Filter::FROM => write!(f, "FROM"),
-            Filter::WHERE => write!(f, "WHERE"),
-            Filter::INTO => write!(f, "INTO"),
-        }
-    }
-}
-
-impl fmt::Display for ValueTypes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ValueTypes::String(s) => write!(f, "{}", s),
-            ValueTypes::Number(n) => write!(f, "{}", n),
-        }
-    }
-}
-
-impl fmt::Display for Operand {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Operand::EQ => write!(f, "="),
-            Operand::GE => write!(f, ">"),
-            Operand::GTE => write!(f, ">="),
-            Operand::LT => write!(f, "<"),
-            Operand::LTE => write!(f, "<="),
-            Operand::NQ => write!(f, "!="),
-        }
-    }
-}
-
 impl fmt::Display for Syntax {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -167,6 +163,46 @@ impl fmt::Display for Syntax {
             Syntax::STAR => write!(f, "*"),
         }
     }
+}
+
+// ========== FieldTypesAllowed Enum ==========
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldTypesAllowed {
+    i8,
+    i32,
+    string,
+}
+
+impl FieldTypesAllowed {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "i8" => Some(FieldTypesAllowed::i8),
+            "i32" => Some(FieldTypesAllowed::i8),
+            "string" => Some(FieldTypesAllowed::i8),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for FieldTypesAllowed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            FieldTypesAllowed::i8 => "i8",
+            FieldTypesAllowed::i32 => "i32",
+            FieldTypesAllowed::string => "string",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+// ========== TokenType Enum ==========
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TokenType {
+    CMD(Command),
+    OP(Operand),
+    FILTER(Filter),
+    VALUE(ValueTypes),
+    SYNTAX(Syntax),
 }
 
 impl fmt::Display for TokenType {

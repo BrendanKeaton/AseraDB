@@ -1,5 +1,6 @@
 use crate::{
     enums::{Command, Filter, Operand, Syntax, TokenType, ValueTypes},
+    handle_commands::handle_create,
     structs::QueryObject,
 };
 
@@ -17,7 +18,10 @@ pub fn handle_sql_inputs(input: &str) -> bool {
         let curr_token: TokenType = classify_token(tokens[query.index]);
         match curr_token {
             TokenType::CMD(command) => {
-                match_command(&command, &tokens, &mut query);
+                let cmd_result = match_command(&command, &tokens, &mut query);
+                if let Err(e) = cmd_result {
+                    println!("Malformed Request. {}", e);
+                }
             }
             TokenType::OP(operand) => todo!(),
             TokenType::FILTER(filter) => todo!(),
@@ -40,12 +44,16 @@ pub fn classify_token(token: &str) -> TokenType {
         .unwrap_or_else(|| return TokenType::CMD(Command::EXIT))
 }
 
-fn match_command(command: &Command, tokens: &Vec<&str>, query: &mut QueryObject) {
+fn match_command(
+    command: &Command,
+    tokens: &[&str],
+    query: &mut QueryObject,
+) -> Result<(), String> {
     match command {
         Command::SELECT => handle_select(tokens, query),
         Command::INSERT => todo!(),
         Command::DELETE => todo!(),
-        Command::CREATE => todo!(),
+        Command::CREATE => handle_create(tokens, query),
         Command::EXIT => todo!(),
     }
 }

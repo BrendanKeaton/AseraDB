@@ -1,4 +1,5 @@
 use crate::enums::Command;
+use crate::enums::FieldTypesAllowed;
 use crate::enums::Operand;
 use crate::enums::ValueTypes;
 use std::fmt;
@@ -12,6 +13,7 @@ pub struct QueryObject {
     pub(crate) conditions: Vec<Conditions>,
     pub(crate) index: usize,
     pub(crate) length: usize, // max length of query is 255 for now.
+    pub(crate) field_type: Option<Vec<FieldTypesAllowed>>,
 }
 
 impl fmt::Display for QueryObject {
@@ -30,17 +32,26 @@ impl fmt::Display for QueryObject {
             .iter()
             .map(|v: &ValueTypes| format!("{}", v))
             .collect();
+        let field_types = match &self.field_type {
+            Some(ft) => ft
+                .iter()
+                .map(|t| format!("{}", t))
+                .collect::<Vec<_>>()
+                .join(", "),
+            None => "None".to_string(),
+        };
 
         write!(
             f,
-            "Command: {}, Table: {}, Fields: [{}], Values: [{}], Conditions: {:?}, Index: {}, Length: {}",
+            "Command: {}, Table: {}, Fields: [{}], Values: [{}], Conditions: {:?}, Index: {}, Length: {}, Field_Types[{}]",
             cmd,
             self.table,
             fields.join(", "),
             values.join(", "),
             self.conditions,
             self.index,
-            self.length
+            self.length,
+            field_types,
         )
     }
 }
