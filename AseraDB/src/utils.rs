@@ -6,10 +6,8 @@ use crate::{
 
 use crate::handle_commands::handle_select;
 
-pub fn handle_sql_inputs(input: &str) -> bool {
+pub fn handle_sql_inputs(input: &str, query: &mut QueryObject) -> bool {
     let tokens: Vec<&str> = input.split_whitespace().collect();
-
-    let mut query: QueryObject = QueryObject::default();
 
     query.length = tokens.len();
     query.index = 0;
@@ -18,7 +16,7 @@ pub fn handle_sql_inputs(input: &str) -> bool {
         let curr_token: TokenType = classify_token(tokens[query.index]);
         match curr_token {
             TokenType::CMD(command) => {
-                let cmd_result = match_command(&command, &tokens, &mut query);
+                let cmd_result = match_command(&command, &tokens, query);
                 if let Err(e) = cmd_result {
                     println!("Malformed Request. {}", e);
                 }
@@ -28,7 +26,6 @@ pub fn handle_sql_inputs(input: &str) -> bool {
             TokenType::VALUE(value_types) => todo!(),
             TokenType::SYNTAX(syntax) => todo!(),
         }
-        println!("{}", query)
     }
 
     return true;

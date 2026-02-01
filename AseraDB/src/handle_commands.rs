@@ -48,6 +48,10 @@ pub fn handle_create(tokens: &[&str], query: &mut QueryObject) -> Result<(), Str
         field_types.push(field_type);
 
         query.index += 1;
+
+        if query.index == query.length {
+            return Ok(());
+        }
     }
 
     Ok(())
