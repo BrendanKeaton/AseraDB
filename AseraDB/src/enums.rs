@@ -177,8 +177,8 @@ impl FieldTypesAllowed {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "i8" => Some(FieldTypesAllowed::i8),
-            "i32" => Some(FieldTypesAllowed::i8),
-            "string" => Some(FieldTypesAllowed::i8),
+            "i32" => Some(FieldTypesAllowed::i32),
+            "string" => Some(FieldTypesAllowed::string),
             _ => None,
         }
     }
