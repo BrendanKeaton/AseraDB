@@ -16,7 +16,7 @@ pub fn handle_select(tokens: &[&str], query: &mut QueryObject) -> Result<(), Str
     Ok(())
 }
 
-fn parse_field(s: &str) -> Result<(ValueTypes, FieldTypesAllowed), String> {
+fn parse_field(s: &str) -> Result<(ValueTypes, FieldTypesAllowed, &str), String> {
     let count_colon: usize = s.chars().filter(|c| *c == ':').count();
 
     if count_colon == 1 {
@@ -28,15 +28,19 @@ fn parse_field(s: &str) -> Result<(ValueTypes, FieldTypesAllowed), String> {
 
         let field_type = FieldTypesAllowed::from_str(ty).ok_or("Unknown field type")?;
 
-        Ok((field_name, field_type))
+        Ok((field_name, field_type, "false"))
     } else if count_colon == 2 {
-        let (name, ty, is_index: &str) = s.splitn(2, ':');
+        let parts: Vec<&str> = s.splitn(3, ':').collect();
+        if parts.len() != 3 {
+            return Err("Field must be formatted as name:type:is_index".to_string());
+        }
+        let (name, ty, is_index) = (parts[0], parts[1], parts[2]);
 
         let field_name = ValueTypes::from_str(name).ok_or("Protected name for field")?;
 
         let field_type = FieldTypesAllowed::from_str(ty).ok_or("Unknown field type")?;
 
-        Ok((field_name, field_type))
+        Ok((field_name, field_type, is_index))
     } else {
         Err("Incorrect formatting".to_string())
     }
@@ -45,18 +49,27 @@ fn parse_field(s: &str) -> Result<(ValueTypes, FieldTypesAllowed), String> {
 pub fn handle_create(tokens: &[&str], query: &mut QueryObject) -> Result<(), String> {
     query.command = Some(Command::CREATE);
     query.field_type = Some(Vec::new());
+    query.is_field_index = Some(Vec::new());
     query.index += 1;
 
     query.table = tokens[query.index].to_owned();
     query.index += 1;
 
     let field_types = query.field_type.as_mut().unwrap();
+    let index_fields = query.is_field_index.as_mut().unwrap();
 
     while let TokenType::VALUE(ValueTypes::String(s)) = classify_token(tokens[query.index]) {
-        let (field_name, field_type) = parse_field(&s)?;
+        let (field_name, field_type, is_index_str) = parse_field(&s)?;
+
+        let is_index = match is_index_str {
+            "false" => false,
+            "true" => true,
+            _ => return Err("Invalid index flag (expected true or false)".into()),
+        };
 
         query.fields.push(field_name);
         field_types.push(field_type);
+        index_fields.push(is_index);
 
         query.index += 1;
 

@@ -54,3 +54,11 @@ fn match_command(
         Command::EXIT => todo!(),
     }
 }
+
+fn match_filter(filter: &Filter, tokens: &[&str], query: &mut QueryObject) -> Result<(), String> {
+    match filter {
+        Filter::FROM => todo!(),
+        Filter::INTO => todo!(),
+        Filter::WHERE => todo!(),
+    }
+}

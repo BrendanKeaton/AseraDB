@@ -1,11 +1,15 @@
 use crate::structs::{Field, QueryObject, TableMetadata};
 use std::fs;
-use std::path::Path;
 
 pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
     let table_name = query.table.clone();
 
     let field_types = query.field_type.as_ref().ok_or("field_type is None")?;
+
+    let indexed_fields = query
+        .is_field_index
+        .as_ref()
+        .ok_or("indexed fields is None.")?;
 
     if query.fields.len() != field_types.len() {
         return Err("Fields and field types length mismatch".to_string());
@@ -15,9 +19,11 @@ pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
         .fields
         .iter()
         .zip(field_types.iter())
-        .map(|(name, data_type)| Field {
+        .zip(indexed_fields.iter())
+        .map(|((name, data_type), &is_indexed)| Field {
             name: name.to_string(),
             data_type: data_type.clone(),
+            is_indexed,
         })
         .collect();
 

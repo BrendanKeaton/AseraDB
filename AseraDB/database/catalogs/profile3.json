@@ -1,0 +1,10 @@
+{
+  "table_name": "profile3",
+  "fields": [
+    {
+      "name": "user_id",
+      "data_type": "string",
+      "is_indexed": true
+    }
+  ]
+}

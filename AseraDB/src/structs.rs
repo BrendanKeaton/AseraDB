@@ -15,6 +15,7 @@ pub struct QueryObject {
     pub(crate) index: usize,
     pub(crate) length: usize, // max length of query is 255 for now.
     pub(crate) field_type: Option<Vec<FieldTypesAllowed>>,
+    pub(crate) is_field_index: Option<Vec<bool>>,
 }
 
 impl fmt::Display for QueryObject {
@@ -41,10 +42,18 @@ impl fmt::Display for QueryObject {
                 .join(", "),
             None => "None".to_string(),
         };
+        let indexed_fields = match &self.is_field_index {
+            Some(ft) => ft
+                .iter()
+                .map(|t| format!("{}", t))
+                .collect::<Vec<_>>()
+                .join(", "),
+            None => "None".to_string(),
+        };
 
         write!(
             f,
-            "Command: {}, Table: {}, Fields: [{}], Values: [{}], Conditions: {:?}, Index: {}, Length: {}, Field_Types[{}]",
+            "Command: {}, Table: {}, Fields: [{}], Values: [{}], Conditions: {:?}, Index: {}, Length: {}, Field_Types[{}], Indexed_Fields[{}]",
             cmd,
             self.table,
             fields.join(", "),
@@ -53,6 +62,7 @@ impl fmt::Display for QueryObject {
             self.index,
             self.length,
             field_types,
+            indexed_fields,
         )
     }
 }
@@ -70,6 +80,7 @@ pub struct Conditions {
 pub struct Field {
     pub name: String,
     pub data_type: FieldTypesAllowed,
+    pub is_indexed: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
