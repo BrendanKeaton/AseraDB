@@ -17,15 +17,29 @@ pub fn handle_select(tokens: &[&str], query: &mut QueryObject) -> Result<(), Str
 }
 
 fn parse_field(s: &str) -> Result<(ValueTypes, FieldTypesAllowed), String> {
-    let (name, ty) = s
-        .split_once(':')
-        .ok_or("Field must be formatted as name:type")?;
+    let count_colon: usize = s.chars().filter(|c| *c == ':').count();
 
-    let field_name = ValueTypes::from_str(name).ok_or("Protected name for field")?;
+    if count_colon == 1 {
+        let (name, ty) = s
+            .split_once(':')
+            .ok_or("Field must be formatted as name:type")?;
 
-    let field_type = FieldTypesAllowed::from_str(ty).ok_or("Unknown field type")?;
+        let field_name = ValueTypes::from_str(name).ok_or("Protected name for field")?;
 
-    Ok((field_name, field_type))
+        let field_type = FieldTypesAllowed::from_str(ty).ok_or("Unknown field type")?;
+
+        Ok((field_name, field_type))
+    } else if count_colon == 2 {
+        let (name, ty, is_index: &str) = s.splitn(2, ':');
+
+        let field_name = ValueTypes::from_str(name).ok_or("Protected name for field")?;
+
+        let field_type = FieldTypesAllowed::from_str(ty).ok_or("Unknown field type")?;
+
+        Ok((field_name, field_type))
+    } else {
+        Err("Incorrect formatting".to_string())
+    }
 }
 
 pub fn handle_create(tokens: &[&str], query: &mut QueryObject) -> Result<(), String> {
@@ -40,9 +54,6 @@ pub fn handle_create(tokens: &[&str], query: &mut QueryObject) -> Result<(), Str
 
     while let TokenType::VALUE(ValueTypes::String(s)) = classify_token(tokens[query.index]) {
         let (field_name, field_type) = parse_field(&s)?;
-
-        println!("{}", field_name);
-        println!("{:?}", field_type);
 
         query.fields.push(field_name);
         field_types.push(field_type);

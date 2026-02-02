@@ -2,6 +2,7 @@ use crate::enums::Command;
 use crate::enums::FieldTypesAllowed;
 use crate::enums::Operand;
 use crate::enums::ValueTypes;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Default, Debug)]
@@ -63,4 +64,16 @@ pub struct Conditions {
     objectOneIsField: bool, // is object one a literal or field
     objecttwoIsField: bool, // is object two a literal or field
     operand: Operand,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Field {
+    pub name: String,
+    pub data_type: FieldTypesAllowed,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TableMetadata {
+    pub table_name: String,
+    pub fields: Vec<Field>,
 }

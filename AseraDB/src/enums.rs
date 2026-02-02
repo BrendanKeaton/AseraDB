@@ -1,5 +1,7 @@
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
+
 // ========== Command Enum ==========
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
@@ -166,7 +168,7 @@ impl fmt::Display for Syntax {
 }
 
 // ========== FieldTypesAllowed Enum ==========
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FieldTypesAllowed {
     i8,
     i32,
