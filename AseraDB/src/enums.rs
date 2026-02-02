@@ -1,13 +1,11 @@
-use std::fmt;
-
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 // ========== Command Enum ==========
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
     INSERT,
     SELECT,
-    DELETE,
     CREATE,
     EXIT,
 }
@@ -17,7 +15,6 @@ impl Command {
         match s {
             "select" => Some(Command::SELECT),
             "insert" => Some(Command::INSERT),
-            "delete" => Some(Command::DELETE),
             "create" => Some(Command::CREATE),
             "exit" => Some(Command::EXIT),
             _ => None,
@@ -30,7 +27,6 @@ impl fmt::Display for Command {
         match self {
             Command::INSERT => write!(f, "INSERT"),
             Command::SELECT => write!(f, "SELECT"),
-            Command::DELETE => write!(f, "DELETE"),
             Command::CREATE => write!(f, "CREATE"),
             Command::EXIT => write!(f, "EXIT"),
         }
@@ -42,12 +38,6 @@ impl fmt::Display for Command {
 pub enum Filter {
     FROM,
     WHERE,
-    INTO,
-    //AND,
-    //OR,
-    //NOT,
-    //SUM,
-    //AVG,
 }
 
 impl Filter {
@@ -55,7 +45,6 @@ impl Filter {
         match s {
             "from" => Some(Filter::FROM),
             "where" => Some(Filter::WHERE),
-            "into" => Some(Filter::INTO),
             _ => None,
         }
     }
@@ -66,7 +55,6 @@ impl fmt::Display for Filter {
         match self {
             Filter::FROM => write!(f, "FROM"),
             Filter::WHERE => write!(f, "WHERE"),
-            Filter::INTO => write!(f, "INTO"),
         }
     }
 }
@@ -89,6 +77,15 @@ impl ValueTypes {
             Some(ValueTypes::Number(num))
         } else {
             Some(ValueTypes::String(s.to_string()))
+        }
+    }
+}
+
+impl ValueTypes {
+    pub fn to_json(&self) -> serde_json::Value {
+        match self {
+            ValueTypes::String(s) => serde_json::Value::String(s.clone()),
+            ValueTypes::Number(i) => serde_json::Value::Number((*i).into()),
         }
     }
 }
@@ -170,17 +167,17 @@ impl fmt::Display for Syntax {
 // ========== FieldTypesAllowed Enum ==========
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FieldTypesAllowed {
-    i8,
-    i32,
-    string,
+    I8,
+    I32,
+    String,
 }
 
 impl FieldTypesAllowed {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "i8" => Some(FieldTypesAllowed::i8),
-            "i32" => Some(FieldTypesAllowed::i32),
-            "string" => Some(FieldTypesAllowed::string),
+            "i8" => Some(FieldTypesAllowed::I8),
+            "i32" => Some(FieldTypesAllowed::I32),
+            "string" => Some(FieldTypesAllowed::String),
             _ => None,
         }
     }
@@ -189,9 +186,9 @@ impl FieldTypesAllowed {
 impl fmt::Display for FieldTypesAllowed {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            FieldTypesAllowed::i8 => "i8",
-            FieldTypesAllowed::i32 => "i32",
-            FieldTypesAllowed::string => "string",
+            FieldTypesAllowed::I8 => "i8",
+            FieldTypesAllowed::I32 => "i32",
+            FieldTypesAllowed::String => "string",
         };
         write!(f, "{}", s)
     }

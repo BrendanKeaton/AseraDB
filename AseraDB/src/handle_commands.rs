@@ -1,8 +1,11 @@
+use std::fs;
+
 use crate::enums::TokenType;
+use crate::structs::TableMetadata;
 use crate::utils::classify_token;
 use crate::{enums::Command, enums::FieldTypesAllowed, enums::ValueTypes, structs::QueryObject};
 
-pub fn handle_select(tokens: &[&str], query: &mut QueryObject) -> Result<(), String> {
+pub fn handle_select(tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
     query.command = Some(Command::SELECT);
     query.index += 1;
     while let TokenType::VALUE(val) = classify_token(tokens[query.index]) {
@@ -13,7 +16,7 @@ pub fn handle_select(tokens: &[&str], query: &mut QueryObject) -> Result<(), Str
             return Err("Please complete command. SELECT cannot be the final token.".to_string());
         }
     }
-    Ok(())
+    return Ok(true);
 }
 
 fn parse_field(s: &str) -> Result<(ValueTypes, FieldTypesAllowed, &str), String> {
@@ -46,7 +49,7 @@ fn parse_field(s: &str) -> Result<(ValueTypes, FieldTypesAllowed, &str), String>
     }
 }
 
-pub fn handle_create(tokens: &[&str], query: &mut QueryObject) -> Result<(), String> {
+pub fn handle_create(tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
     query.command = Some(Command::CREATE);
     query.field_type = Some(Vec::new());
     query.is_field_index = Some(Vec::new());
@@ -74,9 +77,55 @@ pub fn handle_create(tokens: &[&str], query: &mut QueryObject) -> Result<(), Str
         query.index += 1;
 
         if query.index == query.length {
-            return Ok(());
+            return Ok(true);
         }
     }
 
-    Ok(())
+    return Ok(true);
+}
+
+fn parse_values_from_token(token: &str, schema: &TableMetadata) -> Result<Vec<ValueTypes>, String> {
+    let parts: Vec<&str> = token.split(':').collect();
+
+    if parts.len() != schema.fields.len() {
+        return Err(format!(
+            "Column count mismatch: expected {}, got {}",
+            schema.fields.len(),
+            parts.len()
+        ));
+    }
+
+    let mut values = Vec::new();
+    for (part, field) in parts.iter().zip(schema.fields.iter()) {
+        values.push(ValueTypes::String(part.to_string()));
+    }
+
+    Ok(values)
+}
+
+pub fn handle_insert(tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
+    query.command = Some(Command::INSERT);
+    query.index += 1;
+
+    // table name
+    query.table = tokens[query.index].to_owned();
+    query.index += 1;
+
+    // load schema to know how many values per token
+    let schema_path = format!("database/catalogs/{}.json", query.table);
+    let json = fs::read_to_string(&schema_path).map_err(|e| e.to_string())?;
+    let schema: TableMetadata = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+
+    // parse values from each token
+    while query.index < tokens.len() {
+        if let TokenType::VALUE(ValueTypes::String(s)) = classify_token(tokens[query.index]) {
+            let parsed_values = parse_values_from_token(&s, &schema)?;
+            query.values.extend(parsed_values); // append to QueryObject
+        } else {
+            return Err(format!("Unexpected token: {}", tokens[query.index]));
+        }
+        query.index += 1;
+    }
+
+    return Ok(true);
 }

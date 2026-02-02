@@ -1,10 +1,8 @@
 use crate::{
     enums::{Command, Filter, Operand, Syntax, TokenType, ValueTypes},
-    handle_commands::handle_create,
+    handle_commands::{handle_create, handle_insert, handle_select},
     structs::QueryObject,
 };
-
-use crate::handle_commands::handle_select;
 
 pub fn handle_sql_inputs(input: &str, query: &mut QueryObject) -> bool {
     let tokens: Vec<&str> = input.split_whitespace().collect();
@@ -17,14 +15,35 @@ pub fn handle_sql_inputs(input: &str, query: &mut QueryObject) -> bool {
         match curr_token {
             TokenType::CMD(command) => {
                 let cmd_result = match_command(&command, &tokens, query);
-                if let Err(e) = cmd_result {
+                if let Err(e) = &cmd_result {
                     println!("Malformed Request. {}", e);
                 }
+                if cmd_result == Ok(false) {
+                    return false;
+                }
             }
-            TokenType::OP(operand) => todo!(),
+            TokenType::OP(operand) => {
+                println!(
+                    "Malformed Request. Please rewrite and try again. {}",
+                    operand
+                );
+                return false;
+            }
             TokenType::FILTER(filter) => todo!(),
-            TokenType::VALUE(value_types) => todo!(),
-            TokenType::SYNTAX(syntax) => todo!(),
+            TokenType::SYNTAX(syntax) => {
+                println!(
+                    "Malformed Request. Please rewrite and try again. {}",
+                    syntax
+                );
+                return false;
+            }
+            TokenType::VALUE(value_types) => {
+                println!(
+                    "Malformed Request. Please rewrite and try again. {}",
+                    value_types
+                );
+                return false;
+            }
         }
     }
 
@@ -45,20 +64,11 @@ fn match_command(
     command: &Command,
     tokens: &[&str],
     query: &mut QueryObject,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     match command {
         Command::SELECT => handle_select(tokens, query),
-        Command::INSERT => todo!(),
-        Command::DELETE => todo!(),
+        Command::INSERT => handle_insert(tokens, query),
         Command::CREATE => handle_create(tokens, query),
-        Command::EXIT => todo!(),
-    }
-}
-
-fn match_filter(filter: &Filter, tokens: &[&str], query: &mut QueryObject) -> Result<(), String> {
-    match filter {
-        Filter::FROM => todo!(),
-        Filter::INTO => todo!(),
-        Filter::WHERE => todo!(),
+        Command::EXIT => return Ok(false),
     }
 }

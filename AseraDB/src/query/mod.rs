@@ -3,7 +3,7 @@ pub mod commands;
 use crate::enums::Command;
 use crate::structs::QueryObject;
 
-pub fn handle_query(query: &mut QueryObject) -> Result<(), String> {
+pub fn handle_query(query: &mut QueryObject) -> Result<bool, String> {
     println!("{}", query);
     match query.command {
         Some(Command::SELECT) => {
@@ -13,16 +13,13 @@ pub fn handle_query(query: &mut QueryObject) -> Result<(), String> {
             let _ = commands::create_new_table(query);
         }
         Some(Command::INSERT) => {
-            todo!();
-        }
-        Some(Command::DELETE) => {
-            todo!();
+            let _ = commands::insert_new_data(query);
         }
         Some(Command::EXIT) => {
-            return Ok(());
+            return Ok(false);
         }
 
         None => todo!(),
     }
-    return Ok(());
+    return Ok(true);
 }

@@ -1,4 +1,7 @@
-use crate::structs::{Field, QueryObject, TableMetadata};
+use crate::{
+    enums::ValueTypes,
+    structs::{Field, QueryObject, TableMetadata},
+};
 use std::fs;
 
 pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
@@ -44,4 +47,24 @@ pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
     fs::write(&file_path, json).map_err(|e| format!("Failed to write table file: {}", e))?;
 
     Ok(())
+}
+
+fn build_row(schema: &TableMetadata, values: &[ValueTypes]) -> Result<serde_json::Value, String> {
+    let mut obj = serde_json::Map::new();
+    for (field, value) in schema.fields.iter().zip(values.iter()) {
+        obj.insert(field.name.clone(), value.to_json());
+    }
+    println!("here");
+    Ok(serde_json::Value::Object(obj))
+}
+
+pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
+    let schema_path = format!("database/catalogs/{}.json", query.table);
+    let json = fs::read_to_string(&schema_path).unwrap();
+    let schema: TableMetadata = serde_json::from_str(&json).unwrap();
+
+    let row: serde_json::Value = build_row(&schema, &query.values)?;
+
+    println!("{}", row);
+    return Ok(());
 }
