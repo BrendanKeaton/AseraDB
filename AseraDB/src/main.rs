@@ -1,16 +1,14 @@
-mod consts;
-mod enums;
-mod handle_commands;
+mod core;
+mod parsing;
 mod query;
-mod structs;
 mod utils;
 
 use colored::*;
 use query::handle_query;
 use std::io::{self, Write};
-use utils::handle_sql_inputs;
+use utils::handle_sql_parsing;
 
-use crate::{enums::Command, structs::QueryObject};
+use crate::{core::Command, core::QueryObject};
 
 fn main() {
     run();
@@ -28,7 +26,7 @@ fn run() {
             Ok(_) => {
                 let cmd = cmd.trim().to_lowercase();
                 let mut query: QueryObject = QueryObject::default();
-                if !(handle_sql_inputs(&cmd.as_str(), &mut query)) {
+                if !(handle_sql_parsing(&cmd.as_str(), &mut query)) {
                     break;
                 }
                 if query.command != Some(Command::EXIT) || query.command != None {

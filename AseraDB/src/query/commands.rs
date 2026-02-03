@@ -1,7 +1,4 @@
-use crate::{
-    enums::ValueTypes,
-    structs::{Field, QueryObject, TableMetadata},
-};
+use crate::core::{FieldObject, QueryObject, TableMetadataObject, ValueTypes};
 use std::fs;
 
 pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
@@ -18,19 +15,19 @@ pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
         return Err("Fields and field types length mismatch".to_string());
     }
 
-    let fields: Vec<Field> = query
+    let fields: Vec<FieldObject> = query
         .fields
         .iter()
         .zip(field_types.iter())
         .zip(indexed_fields.iter())
-        .map(|((name, data_type), &is_indexed)| Field {
+        .map(|((name, data_type), &is_indexed)| FieldObject {
             name: name.to_string(),
             data_type: data_type.clone(),
             is_indexed,
         })
         .collect();
 
-    let metadata = TableMetadata {
+    let metadata = TableMetadataObject {
         table_name: table_name.clone(),
         fields,
     };
@@ -49,7 +46,10 @@ pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
     Ok(())
 }
 
-fn build_row(schema: &TableMetadata, values: &[ValueTypes]) -> Result<serde_json::Value, String> {
+fn build_row(
+    schema: &TableMetadataObject,
+    values: &[ValueTypes],
+) -> Result<serde_json::Value, String> {
     let mut obj = serde_json::Map::new();
     for (field, value) in schema.fields.iter().zip(values.iter()) {
         obj.insert(field.name.clone(), value.to_json());
@@ -61,7 +61,7 @@ fn build_row(schema: &TableMetadata, values: &[ValueTypes]) -> Result<serde_json
 pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
     let schema_path = format!("database/catalogs/{}.json", query.table);
     let json = fs::read_to_string(&schema_path).unwrap();
-    let schema: TableMetadata = serde_json::from_str(&json).unwrap();
+    let schema: TableMetadataObject = serde_json::from_str(&json).unwrap();
 
     let row: serde_json::Value = build_row(&schema, &query.values)?;
 

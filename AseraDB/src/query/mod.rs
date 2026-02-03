@@ -1,7 +1,7 @@
 pub mod commands;
 
-use crate::enums::Command;
-use crate::structs::QueryObject;
+use crate::core::Command;
+use crate::core::QueryObject;
 
 pub fn handle_query(query: &mut QueryObject) -> Result<bool, String> {
     println!("{}", query);

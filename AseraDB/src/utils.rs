@@ -1,10 +1,10 @@
 use crate::{
-    enums::{Command, Filter, Operand, Syntax, TokenType, ValueTypes},
-    handle_commands::{handle_create, handle_insert, handle_select},
-    structs::QueryObject,
+    core::structs::QueryObject,
+    core::{Command, Filter, Operand, Syntax, TokenType, ValueTypes},
+    parsing::{handle_create, handle_insert, handle_select},
 };
 
-pub fn handle_sql_inputs(input: &str, query: &mut QueryObject) -> bool {
+pub fn handle_sql_parsing(input: &str, query: &mut QueryObject) -> bool {
     let tokens: Vec<&str> = input.split_whitespace().collect();
 
     query.length = tokens.len();

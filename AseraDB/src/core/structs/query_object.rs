@@ -1,8 +1,7 @@
-use crate::enums::Command;
-use crate::enums::FieldTypesAllowed;
-use crate::enums::Operand;
-use crate::enums::ValueTypes;
-use serde::{Deserialize, Serialize};
+use crate::core::Command;
+use crate::core::ConditionsObject;
+use crate::core::FieldTypesAllowed;
+use crate::core::ValueTypes;
 use std::fmt;
 
 #[derive(Default, Debug)]
@@ -11,7 +10,7 @@ pub struct QueryObject {
     pub(crate) table: String,
     pub(crate) fields: Vec<ValueTypes>,
     pub(crate) values: Vec<ValueTypes>,
-    pub(crate) conditions: Vec<Conditions>,
+    pub(crate) conditions: Vec<ConditionsObject>,
     pub(crate) index: usize,
     pub(crate) length: usize, // max length of query is 255 for now.
     pub(crate) field_type: Option<Vec<FieldTypesAllowed>>,
@@ -65,26 +64,4 @@ impl fmt::Display for QueryObject {
             indexed_fields,
         )
     }
-}
-
-#[derive(Default, Debug)]
-pub struct Conditions {
-    objectOne: String,
-    objectTwo: String,
-    objectOneIsField: bool, // is object one a literal or field
-    objecttwoIsField: bool, // is object two a literal or field
-    operand: Operand,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Field {
-    pub name: String,
-    pub data_type: FieldTypesAllowed,
-    pub is_indexed: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TableMetadata {
-    pub table_name: String,
-    pub fields: Vec<Field>,
 }
