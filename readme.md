@@ -22,14 +22,14 @@ Selecting rows that are valid, Inserting with types that are valid, future metad
 
 ### Roadmap
 
-Full WHERE clause support for SELECTx
-Page-based byte storage format (row + page layout)
-Indexing on Create with B+Tree
-Write-Ahead Log (WAL) implementation (Crash Recovery with Tests)
-Buffer pool management
-More "rules", IE table with no index listed defaults to first column
-Delete Support
-Benchmarking / Tests vs SQL Lite
+Full WHERE clause support for SELECT <br>
+Page-based byte storage format (row + page layout) <br>
+Indexing on Create with B+Tree <br>
+Write-Ahead Log (WAL) implementation (Crash Recovery with Tests) <br>
+Buffer pool management <br>
+More "rules", IE table with no index listed defaults to first column <br>
+Delete Support <br>
+Benchmarking / Tests vs SQL Lite <br>
 
 # TO RUN:
 
