@@ -15,14 +15,14 @@ CREATE profile id:i32:true email:string:false username:string:false
 INSERT profile 1:user@gmail.com:user
 SELECT \* from profile
 
-Only create has _actual_ functionality currently. Currently it creates a catalog in /database/catalog/[table_name].json to be used later for items like:
-Selecting rows that are valid,
-Inserting with types that are valid,
-future metadata
+Only create has _actual_ functionality currently.
+
+Currently it creates a catalog in /database/catalog/[table_name].json to be used later for items like:
+Selecting rows that are valid, Inserting with types that are valid, future metadata
 
 ### Roadmap
 
-Full WHERE clause support for SELECT
+Full WHERE clause support for SELECTx
 Page-based byte storage format (row + page layout)
 Indexing on Create with B+Tree
 Write-Ahead Log (WAL) implementation (Crash Recovery with Tests)
