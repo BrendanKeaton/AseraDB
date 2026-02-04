@@ -1,17 +1,30 @@
 pub mod utils;
-use crate::core::{Command, QueryObject, TableMetadataObject, TokenType, ValueTypes};
+pub use crate::parsing::utils::get_table_schema;
 use crate::utils::classify_token;
+use crate::{
+    core::{Command, QueryObject, TableMetadataObject, TokenType, ValueTypes},
+    parsing::utils::get_field_names,
+};
 use std::fs;
 
 pub fn handle_select(tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
     query.command = Some(Command::SELECT);
     query.index += 1;
-    while let TokenType::VALUE(val) = classify_token(tokens[query.index]) {
-        query.fields.push(val);
-        query.index += 1;
 
-        if query.index == query.length {
-            return Err("Please complete command. SELECT cannot be the final token.".to_string());
+    while let TokenType::VALUE(val) = classify_token(tokens[query.index]) {
+        if val == ValueTypes::STAR {
+            query.fields.push(val);
+            query.index += 1;
+            return Ok(true);
+        } else {
+            query.fields.push(val);
+            query.index += 1;
+
+            if query.index == query.length {
+                return Err(
+                    "Please complete command. SELECT cannot be the final token.".to_string()
+                );
+            }
         }
     }
     return Ok(true);
@@ -23,7 +36,15 @@ pub fn handle_create(tokens: &[&str], query: &mut QueryObject) -> Result<bool, S
     query.is_field_index = Some(Vec::new());
     query.index += 1;
 
-    query.table = tokens[query.index].to_owned();
+    let curr_token = tokens[query.index].to_owned();
+    if let Ok(num) = curr_token.parse::<isize>() {
+        println!(
+            "Malformed request. Please do not user integer as table name. Attempted table name: {}",
+            num
+        );
+        return Ok(false);
+    }
+    query.table = curr_token;
     query.index += 1;
 
     let field_types = query.field_type.as_mut().unwrap();
@@ -59,9 +80,7 @@ pub fn handle_insert(tokens: &[&str], query: &mut QueryObject) -> Result<bool, S
     query.table = tokens[query.index].to_owned();
     query.index += 1;
 
-    let schema_path = format!("database/catalogs/{}.json", query.table);
-    let json = fs::read_to_string(&schema_path).map_err(|e| e.to_string())?;
-    let schema: TableMetadataObject = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+    let schema = get_table_schema(&query.table)?;
 
     while query.index < tokens.len() {
         if let TokenType::VALUE(ValueTypes::String(s)) = classify_token(tokens[query.index]) {
@@ -72,6 +91,26 @@ pub fn handle_insert(tokens: &[&str], query: &mut QueryObject) -> Result<bool, S
         }
         query.index += 1;
     }
+
+    return Ok(true);
+}
+
+pub fn handle_where(tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
+    query.index += 1; // Move passed "WHERE", and dont save to query object direclty
+
+    let table = get_field_names(&query.table);
+
+    let curr_token = tokens[query.index].to_owned();
+    while let TokenType::VALUE(val) = classify_token(tokens[query.index]) {}
+
+    return Ok(true);
+}
+
+pub fn handle_from(tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
+    query.index += 1; // Move passed "FROM", dont save to query object directly
+
+    query.table = tokens[query.index].to_owned();
+    query.index += 1;
 
     return Ok(true);
 }

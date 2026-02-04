@@ -1,3 +1,5 @@
+use std::fs;
+
 use crate::core::{FieldTypesAllowed, TableMetadataObject, ValueTypes};
 
 pub fn parse_field(s: &str) -> Result<(ValueTypes, FieldTypesAllowed, &str), String> {
@@ -45,9 +47,33 @@ pub fn parse_values_from_token(
     }
 
     let mut values = Vec::new();
-    for (part, field) in parts.iter().zip(schema.fields.iter()) {
+    for (part, _field) in parts.iter().zip(schema.fields.iter()) {
         values.push(ValueTypes::String(part.to_string()));
     }
 
     Ok(values)
+}
+
+pub fn get_table_schema(table_name: &str) -> Result<TableMetadataObject, String> {
+    let schema_path = format!("database/catalogs/{}.json", table_name);
+
+    let json = fs::read_to_string(&schema_path).map_err(|e| e.to_string())?;
+
+    let schema: TableMetadataObject = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+
+    Ok(schema)
+}
+
+pub fn get_field_names(table_name: &str) -> Result<Vec<String>, bool> {
+    let Ok(table_schema) = get_table_schema(table_name) else {
+        return Err(false);
+    };
+
+    let mut field_names: Vec<String> = Vec::new();
+
+    for each in table_schema.fields {
+        field_names.push(each.name[1..each.name.len() - 1].to_owned());
+    }
+
+    return Ok(field_names);
 }

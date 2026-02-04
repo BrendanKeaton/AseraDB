@@ -30,6 +30,7 @@ fn run() {
                     break;
                 }
                 if query.command != Some(Command::EXIT) || query.command != None {
+                    println!("{}", query);
                     let _ = handle_query(&mut query);
                 }
             }

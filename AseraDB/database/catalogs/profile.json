@@ -1,0 +1,20 @@
+{
+  "table_name": "profile",
+  "fields": [
+    {
+      "name": "\"user\"",
+      "data_type": "String",
+      "is_indexed": true
+    },
+    {
+      "name": "\"email\"",
+      "data_type": "String",
+      "is_indexed": false
+    },
+    {
+      "name": "\"age\"",
+      "data_type": "I8",
+      "is_indexed": false
+    }
+  ]
+}

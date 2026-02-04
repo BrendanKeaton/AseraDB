@@ -1,7 +1,6 @@
 use crate::{
-    core::structs::QueryObject,
-    core::{Command, Filter, Operand, Syntax, TokenType, ValueTypes},
-    parsing::{handle_create, handle_insert, handle_select},
+    core::{Command, Filter, Operand, TokenType, ValueTypes, structs::QueryObject},
+    parsing::{handle_create, handle_from, handle_insert, handle_select, handle_where},
 };
 
 pub fn handle_sql_parsing(input: &str, query: &mut QueryObject) -> bool {
@@ -29,13 +28,14 @@ pub fn handle_sql_parsing(input: &str, query: &mut QueryObject) -> bool {
                 );
                 return false;
             }
-            TokenType::FILTER(filter) => todo!(),
-            TokenType::SYNTAX(syntax) => {
-                println!(
-                    "Malformed Request. Please rewrite and try again. {}",
-                    syntax
-                );
-                return false;
+            TokenType::FILTER(filter) => {
+                let filter_result = match_filter(&filter, &tokens, query);
+                if let Err(e) = &filter_result {
+                    println!("Malformed Request. {}", e);
+                }
+                if filter_result == Ok(false) {
+                    return false;
+                }
             }
             TokenType::VALUE(value_types) => {
                 println!(
@@ -55,7 +55,6 @@ pub fn classify_token(token: &str) -> TokenType {
         .map(TokenType::CMD)
         .or_else(|| Filter::from_str(token).map(TokenType::FILTER))
         .or_else(|| Operand::from_str(token).map(TokenType::OP))
-        .or_else(|| Syntax::from_str(token).map(TokenType::SYNTAX))
         .or_else(|| ValueTypes::from_str(token).map(TokenType::VALUE))
         .unwrap_or_else(|| return TokenType::CMD(Command::EXIT))
 }
@@ -70,5 +69,12 @@ fn match_command(
         Command::INSERT => handle_insert(tokens, query),
         Command::CREATE => handle_create(tokens, query),
         Command::EXIT => return Ok(false),
+    }
+}
+
+fn match_filter(filter: &Filter, tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
+    match filter {
+        Filter::FROM => handle_from(tokens, query),
+        Filter::WHERE => handle_where(tokens, query),
     }
 }

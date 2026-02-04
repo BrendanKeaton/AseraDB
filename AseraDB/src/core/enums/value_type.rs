@@ -4,6 +4,8 @@ use std::fmt;
 pub enum ValueTypes {
     String(String),
     Number(i32),
+    STAR,
+    COMMA,
 }
 
 // this from_str function will always return "Some"...
@@ -13,7 +15,11 @@ pub enum ValueTypes {
 
 impl ValueTypes {
     pub fn from_str(s: &str) -> Option<Self> {
-        if let Ok(num) = s.parse::<i32>() {
+        if s == "*" {
+            Some(ValueTypes::STAR)
+        } else if s == "," {
+            Some(ValueTypes::COMMA)
+        } else if let Ok(num) = s.parse::<i32>() {
             Some(ValueTypes::Number(num))
         } else {
             Some(ValueTypes::String(s.to_string()))
@@ -25,16 +31,20 @@ impl ValueTypes {
     pub fn to_json(&self) -> serde_json::Value {
         match self {
             ValueTypes::String(s) => serde_json::Value::String(s.clone()),
-            ValueTypes::Number(i) => serde_json::Value::Number((*i).into()),
+            ValueTypes::Number(n) => serde_json::Value::Number((*n).into()),
+            ValueTypes::STAR => serde_json::Value::String("*".into()),
+            ValueTypes::COMMA => serde_json::Value::String(",".into()),
         }
     }
 }
 
 impl fmt::Display for ValueTypes {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ValueTypes::String(s) => write!(f, "{}", s),
+            ValueTypes::String(s) => write!(f, "\"{}\"", s),
             ValueTypes::Number(n) => write!(f, "{}", n),
+            ValueTypes::STAR => write!(f, "*"),
+            ValueTypes::COMMA => write!(f, ","),
         }
     }
 }

@@ -4,7 +4,6 @@ use crate::core::Command;
 use crate::core::QueryObject;
 
 pub fn handle_query(query: &mut QueryObject) -> Result<bool, String> {
-    println!("{}", query);
     match query.command {
         Some(Command::SELECT) => {
             println!("Not implemented");

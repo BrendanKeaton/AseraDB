@@ -1,4 +1,4 @@
-use crate::core::enums::{Command, Filter, Operand, Syntax, ValueTypes};
+use crate::core::enums::{Command, Filter, Operand, ValueTypes};
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -7,7 +7,6 @@ pub enum TokenType {
     OP(Operand),
     FILTER(Filter),
     VALUE(ValueTypes),
-    SYNTAX(Syntax),
 }
 
 impl fmt::Display for TokenType {
@@ -17,7 +16,6 @@ impl fmt::Display for TokenType {
             TokenType::OP(op) => write!(f, "{}", op),
             TokenType::FILTER(filter) => write!(f, "{}", filter),
             TokenType::VALUE(val) => write!(f, "{}", val),
-            TokenType::SYNTAX(syn) => write!(f, "{}", syn),
         }
     }
 }

@@ -54,7 +54,6 @@ fn build_row(
     for (field, value) in schema.fields.iter().zip(values.iter()) {
         obj.insert(field.name.clone(), value.to_json());
     }
-    println!("here");
     Ok(serde_json::Value::Object(obj))
 }
 
