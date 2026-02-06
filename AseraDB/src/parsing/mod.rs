@@ -95,18 +95,17 @@ pub fn handle_insert(tokens: &[&str], query: &mut QueryObject) -> Result<bool, S
     return Ok(true);
 }
 
-pub fn handle_where(tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
+pub fn handle_where(tokens: &[&str], query: &mut QueryObject) -> Result<bool, &'static str> {
     query.index += 1; // Move passed "WHERE", and dont save to query object direclty
 
-    let table = get_field_names(&query.table);
+    let table = get_field_names(&query.table)?;
 
     let curr_token = tokens[query.index].to_owned();
-    while let TokenType::VALUE(val) = classify_token(tokens[query.index]) {}
 
     return Ok(true);
 }
 
-pub fn handle_from(tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
+pub fn handle_from(tokens: &[&str], query: &mut QueryObject) -> Result<bool, &'static str> {
     query.index += 1; // Move passed "FROM", dont save to query object directly
 
     query.table = tokens[query.index].to_owned();

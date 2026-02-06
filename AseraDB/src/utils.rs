@@ -72,7 +72,11 @@ fn match_command(
     }
 }
 
-fn match_filter(filter: &Filter, tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
+fn match_filter(
+    filter: &Filter,
+    tokens: &[&str],
+    query: &mut QueryObject,
+) -> Result<bool, &'static str> {
     match filter {
         Filter::FROM => handle_from(tokens, query),
         Filter::WHERE => handle_where(tokens, query),
