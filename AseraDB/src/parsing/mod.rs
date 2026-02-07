@@ -1,11 +1,11 @@
 pub mod utils;
+use crate::core::ConditionsObject;
 pub use crate::parsing::utils::get_table_schema;
 use crate::utils::classify_token;
 use crate::{
-    core::{Command, QueryObject, TableMetadataObject, TokenType, ValueTypes},
+    core::{Command, QueryObject, TokenType, ValueTypes},
     parsing::utils::get_field_names,
 };
-use std::fs;
 
 pub fn handle_select(tokens: &[&str], query: &mut QueryObject) -> Result<bool, String> {
     query.command = Some(Command::SELECT);
@@ -101,6 +101,36 @@ pub fn handle_where(tokens: &[&str], query: &mut QueryObject) -> Result<bool, &'
     let table = get_field_names(&query.table)?;
 
     let curr_token = tokens[query.index].to_owned();
+
+    let mut conditions: ConditionsObject = ConditionsObject::default();
+
+    if table.contains(&curr_token) {
+        conditions.object_one_is_field = true;
+    } else {
+        conditions.object_one_is_field = false;
+    }
+
+    conditions.object_one = curr_token.to_owned();
+    query.index += 1;
+
+    if let TokenType::OP(op) = classify_token(tokens[query.index]) {
+        conditions.operand = op.to_owned();
+        query.index += 1;
+    } else {
+        return Err("Invalid operand type provided.");
+    }
+
+    let curr_token = tokens[query.index].to_owned();
+    if table.contains(&curr_token) {
+        conditions.object_two_is_field = true;
+    } else {
+        conditions.object_two_is_field = false;
+    }
+
+    conditions.object_two = curr_token.to_owned();
+    query.index += 1;
+
+    query.conditions.push(conditions);
 
     return Ok(true);
 }

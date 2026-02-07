@@ -66,7 +66,7 @@ pub fn get_table_schema(table_name: &str) -> Result<TableMetadataObject, String>
 
 pub fn get_field_names(table_name: &str) -> Result<Vec<String>, &'static str> {
     let Ok(table_schema) = get_table_schema(table_name) else {
-        return Err("Incorrect table name.");
+        return Err("Table does not exist.");
     };
 
     let mut field_names: Vec<String> = Vec::new();
