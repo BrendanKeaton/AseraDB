@@ -1,4 +1,7 @@
-use crate::core::{FieldObject, QueryObject, TableMetadataObject, ValueTypes};
+use crate::{
+    core::{FieldObject, QueryObject, TableMetadataObject, ValueTypes},
+    parsing::get_table_schema,
+};
 use std::fs;
 
 pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
@@ -58,9 +61,7 @@ fn build_row(
 }
 
 pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
-    let schema_path = format!("database/catalogs/{}.json", query.table);
-    let json = fs::read_to_string(&schema_path).unwrap();
-    let schema: TableMetadataObject = serde_json::from_str(&json).unwrap();
+    let schema = get_table_schema(&query.table)?;
 
     let row: serde_json::Value = build_row(&schema, &query.values)?;
 
