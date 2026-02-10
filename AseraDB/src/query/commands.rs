@@ -55,7 +55,16 @@ fn build_row_byte(schema: &TableMetadataObject, values: &[ValueTypes]) -> Result
 
     let mut row_header: Vec<String> = Vec::new();
 
+    let mut is_first: bool = true;
+
+    let mut row_data: String = String::new();
+
     for (field, value) in schema.fields.iter().zip(values.iter()) {
+        if !is_first {
+            row_data.push_str(",");
+        } else {
+            is_first = false;
+        }
         let raw: &str = value
             .as_str()
             .ok_or_else(|| format!("value for field '{}' is None", field.name))?;
@@ -65,11 +74,13 @@ fn build_row_byte(schema: &TableMetadataObject, values: &[ValueTypes]) -> Result
                 let v = raw
                     .parse::<i8>()
                     .map_err(|_| format!("invalid I8 for field '{}'", field.name))?;
+                row_data.push_str(&v.to_string());
             }
             FieldTypesAllowed::I32 => {
                 let v = raw
                     .parse::<i32>()
                     .map_err(|_| format!("invalid I32 for field '{}'", field.name))?;
+                row_data.push_str(&v.to_string());
             }
             FieldTypesAllowed::String => {
                 let max_len = 255;
@@ -79,6 +90,7 @@ fn build_row_byte(schema: &TableMetadataObject, values: &[ValueTypes]) -> Result
                         field.name, max_len
                     ));
                 }
+                row_data.push_str(raw);
             }
         }
     }
