@@ -38,6 +38,15 @@ impl ValueTypes {
     }
 }
 
+impl ValueTypes {
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            ValueTypes::String(s) => Some(s.as_str()),
+            _ => None,
+        }
+    }
+}
+
 impl fmt::Display for ValueTypes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

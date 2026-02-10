@@ -1,5 +1,5 @@
 use crate::{
-    core::{FieldObject, QueryObject, TableMetadataObject, ValueTypes},
+    core::{FieldObject, FieldTypesAllowed, QueryObject, TableMetadataObject, ValueTypes},
     parsing::get_table_schema,
 };
 use std::fs;
@@ -24,7 +24,7 @@ pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
         .zip(field_types.iter())
         .zip(indexed_fields.iter())
         .map(|((name, data_type), &is_indexed)| FieldObject {
-            name: name.to_string(),
+            name: name.to_string().trim_matches('"').to_string(),
             data_type: data_type.clone(),
             is_indexed,
         })
@@ -49,22 +49,46 @@ pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
     Ok(())
 }
 
-fn build_row(
-    schema: &TableMetadataObject,
-    values: &[ValueTypes],
-) -> Result<serde_json::Value, String> {
-    let mut obj = serde_json::Map::new();
+fn build_row_byte(schema: &TableMetadataObject, values: &[ValueTypes]) -> Result<bool, String> {
+    let num_columns: usize = schema.fields.len();
+    let row_header_size: usize = 1 + (num_columns * 32);
+
+    let mut row_header: Vec<String> = Vec::new();
+
     for (field, value) in schema.fields.iter().zip(values.iter()) {
-        obj.insert(field.name.clone(), value.to_json());
+        let raw: &str = value
+            .as_str()
+            .ok_or_else(|| format!("value for field '{}' is None", field.name))?;
+
+        match field.data_type {
+            FieldTypesAllowed::I8 => {
+                let v = raw
+                    .parse::<i8>()
+                    .map_err(|_| format!("invalid I8 for field '{}'", field.name))?;
+            }
+            FieldTypesAllowed::I32 => {
+                let v = raw
+                    .parse::<i32>()
+                    .map_err(|_| format!("invalid I32 for field '{}'", field.name))?;
+            }
+            FieldTypesAllowed::String => {
+                let max_len = 255;
+                if raw.len() > max_len {
+                    return Err(format!(
+                        "string length for field '{}' exceeds maximum of {}",
+                        field.name, max_len
+                    ));
+                }
+            }
+        }
     }
-    Ok(serde_json::Value::Object(obj))
+    Ok(true)
 }
 
 pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
     let schema = get_table_schema(&query.table)?;
 
-    let row: serde_json::Value = build_row(&schema, &query.values)?;
+    build_row_byte(&schema, &query.values)?;
 
-    println!("{}", row);
     return Ok(());
 }
