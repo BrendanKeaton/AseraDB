@@ -1,6 +1,6 @@
 pub const PAGE_SIZE: usize = 4096;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Page {
     pub id: u64,
     pub data: [u8; PAGE_SIZE],

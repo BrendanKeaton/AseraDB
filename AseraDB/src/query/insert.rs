@@ -11,7 +11,7 @@ pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
     let row_bytes = build_row_byte(&schema, &query.values)?;
 
     println!("Inserting row bytes: {:?}", row_bytes); // Test command is : insert profile billy:24:172912
-    let page: Page = build_new_page(row_bytes);
+    let page: Page = build_new_page(&row_bytes);
 
     println!("new page: {:?}", page);
 
@@ -72,7 +72,8 @@ fn build_row_byte(schema: &TableMetadataObject, values: &[ValueTypes]) -> Result
     Ok(result)
 }
 
-fn build_new_page(prelim_row_data: Vec<u8>) -> Page {
+fn build_new_page(prelim_row_data: &Vec<u8>) -> Page {
+    let PAGE_HEADER_SIZE: u16 = 8 as u16; // this should go into a "consts" file of some sort
     let mut page: Page = Page::default();
 
     // This curr_page_id value should be replaced w/ Metadata.len() and page size divison to get the "real" value.
@@ -83,13 +84,21 @@ fn build_new_page(prelim_row_data: Vec<u8>) -> Page {
 
     page.id = curr_page_id;
 
-    // TODO: Create page header, will have-
-    // id (u8, max 255 pages for toy db, can be set with above curr_page_id)
-    // row_count (curr number of rows stored, start 1)
-    // free page offset, number of bytes from end to start of "true" data (non header)
-    // free space remaining, amount of space avail to be stored (will have to be re-done when deletes are supported, but thats fine for now)
-    // Last Sequence Number (for WAL recovery)
-    // Checksum.... maybe not useful for this? unsure.
+    page.data[0] = 1 as u8; // id - 1b
+    page.data[1] = 1 as u8; // row_count - 1b
+
+    let len: u16 = prelim_row_data.len() as u16;
+    let bytes = len.to_le_bytes();
+    // len of first row of data, max ~65k (over a page size, but u8 is too small). This is saved to the "free page offset"
+    // To calculate the next page of offset, you would just take this value, and minus the new
+    // rows length
+    page.data[2..4].copy_from_slice(&bytes);
+
+    let data_used: u16 = PAGE_HEADER_SIZE + len;
+    let space_remaining_bytes = data_used.to_le_bytes();
+    page.data[5..6].copy_from_slice(&space_remaining_bytes); // This is the amount of space remaining.. update on insert / delete
+
+    page.data[7] = 0 as u8; // This is Last Sequence Number (for WAL recovery)... this needs to be updated as the "actual" value once WAL is created in this repo TODO
 
     return page;
 }
