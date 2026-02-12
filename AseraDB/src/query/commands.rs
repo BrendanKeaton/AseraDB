@@ -1,8 +1,4 @@
-use crate::{
-    core::{FieldObject, FieldTypesAllowed, QueryObject, TableMetadataObject, ValueTypes},
-    parsing::get_table_schema,
-};
-use core::num;
+use crate::core::{FieldObject, QueryObject, TableMetadataObject};
 use std::fs;
 
 pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
@@ -48,67 +44,4 @@ pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
     fs::write(&file_path, json).map_err(|e| format!("Failed to write table file: {}", e))?;
 
     Ok(())
-}
-
-fn build_row_byte(schema: &TableMetadataObject, values: &[ValueTypes]) -> Result<Vec<u8>, String> {
-    let num_columns: usize = schema.fields.len();
-
-    let mut row_header: Vec<u8> = Vec::new();
-    let mut row_data: Vec<u8> = Vec::new();
-
-    for (field, value) in schema.fields.iter().zip(values.iter()) {
-        let raw: &str = value
-            .as_str()
-            .ok_or_else(|| format!("value for field '{}' is None", field.name))?;
-
-        match field.data_type {
-            FieldTypesAllowed::I8 => {
-                let v = raw
-                    .parse::<i8>()
-                    .map_err(|_| format!("invalid I8 for field '{}'", field.name))?;
-                row_data.push(v as u8);
-                row_header.push(1);
-            }
-            FieldTypesAllowed::I32 => {
-                let v = raw
-                    .parse::<i32>()
-                    .map_err(|_| format!("invalid I32 for field '{}'", field.name))?;
-                row_data.extend_from_slice(&v.to_le_bytes());
-                row_header.push(4);
-            }
-            FieldTypesAllowed::String => {
-                let max_len = 255;
-                let bytes = raw.as_bytes();
-                let byte_len = bytes.len();
-
-                if byte_len > max_len {
-                    return Err(format!(
-                        "string byte length for field '{}' exceeds maximum of {}",
-                        field.name, max_len
-                    ));
-                }
-                row_data.extend_from_slice(bytes);
-                row_header.push(byte_len as u8);
-            }
-        }
-    }
-
-    let mut result: Vec<u8> = Vec::new();
-    let row_header_size = 1 + num_columns;
-
-    result.push(row_header_size as u8);
-    result.push(num_columns as u8);
-    result.extend(row_header);
-    result.extend(row_data);
-
-    Ok(result)
-}
-pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
-    let schema = get_table_schema(&query.table)?;
-
-    let row_bytes = build_row_byte(&schema, &query.values)?;
-
-    println!("Inserting row bytes: {:?}", row_bytes); // Test command is : insert profile brendan:24:172912
-
-    return Ok(());
 }

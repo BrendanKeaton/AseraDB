@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod insert;
 
 use crate::core::Command;
 use crate::core::QueryObject;
@@ -12,7 +13,7 @@ pub fn handle_query(query: &mut QueryObject) -> Result<bool, String> {
             let _ = commands::create_new_table(query);
         }
         Some(Command::INSERT) => {
-            let _ = commands::insert_new_data(query);
+            let _ = insert::insert_new_data(query);
         }
         Some(Command::EXIT) => {
             return Ok(false);
