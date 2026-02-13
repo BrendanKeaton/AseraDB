@@ -1,9 +1,13 @@
-use std::process::id;
+use std::fs;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 
 use crate::{
     core::{FieldTypesAllowed, Page, QueryObject, TableMetadataObject, ValueTypes},
     parsing::get_table_schema,
 };
+
+pub const PAGE_SIZE: usize = 4096; // This should become a gloabl const in ../core : TODO
 
 pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
     let schema = get_table_schema(&query.table)?;
@@ -116,7 +120,34 @@ fn get_page(table: &str, prelim_row_data: &Vec<u8>) -> Page {
     return page;
 }
 
-fn find_existing_page(table: &str) -> Result<Page, &'static str> {
-    let page: Page = Page::default();
+fn find_open_page(prelim_row_data: &Vec<u8>) -> Page {
+    let mut page: Page = Page::default();
+    return page;
+}
+
+fn read_page_bytes(page: &[u8]) -> Page {
+    return Page::default(); // placeholder to get an error to stop yelling at me
+}
+
+fn find_existing_page(table_name: &str, prelim_row_data: &Vec<u8>) -> Result<Page, String> {
+    let mut page: Page = Page::default();
+
+    let schema_path = format!("database/table/{}.asra", table_name);
+
+    let mut file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
+
+    let metadata = file.metadata().map_err(|e| e.to_string())?;
+    let file_len = metadata.len();
+    if file_len < PAGE_SIZE as u64 {
+        return Err("file smaller than one page: corrupt table".to_string());
+    }
+
+    for curr_page_id in 0..(file_len / PAGE_SIZE as u64) {
+        file.seek(SeekFrom::Start(curr_page_id * PAGE_SIZE as u64))
+            .map_err(|e| e.to_string())?;
+
+        file.read_exact(&mut page.data).map_err(|e| e.to_string())?;
+    }
+
     return Ok(page);
 }
