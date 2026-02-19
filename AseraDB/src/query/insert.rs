@@ -1,6 +1,6 @@
-use std::fs;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
+use std::path::Path;
 
 use crate::{
     core::{FieldTypesAllowed, Page, QueryObject, TableMetadataObject, ValueTypes},
@@ -15,7 +15,7 @@ pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
     let row_bytes = build_row_byte(&schema, &query.values)?;
 
     println!("Inserting row bytes: {:?}", row_bytes); // Test command is : insert profile billy:24:172912
-    let page: Page = build_new_page(&row_bytes);
+    let page: Page = build_new_page(&row_bytes, &query.table).map_err(|e| e.to_string())?;
 
     println!("new page: {:?}", page);
 
@@ -76,15 +76,23 @@ fn build_row_byte(schema: &TableMetadataObject, values: &[ValueTypes]) -> Result
     Ok(result)
 }
 
-fn build_new_page(prelim_row_data: &Vec<u8>) -> Page {
+fn build_new_page(prelim_row_data: &Vec<u8>, table: &str) -> Result<Page, String> {
     let page_header_size: u16 = 8 as u16; // this should go into a "consts" file of some sort
     let mut page: Page = Page::default();
 
-    // This curr_page_id value should be replaced w/ Metadata.len() and page size divison to get the "real" value.
-    // Link here: https://doc.rust-lang.org/stable/std/fs/struct.Metadata.html#method.len
-    // For now/testing, setting to "1" and deleting each time is fine
-    // TODO
-    let curr_page_id = 1;
+    let schema_path = format!("database/tables/{}.asera", table);
+    let path = Path::new(&schema_path);
+
+    let curr_page_id: u64;
+    if path.exists() {
+        let file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
+
+        let metadata = file.metadata().map_err(|e| e.to_string())?;
+        curr_page_id = metadata.len() / PAGE_SIZE as u64;
+    } else {
+        curr_page_id = 0;
+        File::create(path).expect("Failed to create table file");
+    }
 
     page.id = curr_page_id;
 
@@ -100,24 +108,24 @@ fn build_new_page(prelim_row_data: &Vec<u8>) -> Page {
 
     let data_used: u16 = page_header_size + len;
     let space_remaining_bytes = data_used.to_le_bytes();
-    page.data[5..6].copy_from_slice(&space_remaining_bytes); // This is the amount of space remaining.. update on insert / delete
+    page.data[5..7].copy_from_slice(&space_remaining_bytes); // This is the amount of space remaining.. update on insert / delete
 
     // This is Last Sequence Number (for WAL recovery)... this needs to be updated as the "actual" value once WAL is created in this repo TODO
     page.data[7] = 0 as u8;
-
-    return page;
+    let new_row_start = PAGE_SIZE - len as usize - 1;
+    return Ok(page);
 }
 
-fn get_page(table: &str, prelim_row_data: &Vec<u8>) -> Page {
+fn get_page(table: &str, prelim_row_data: &Vec<u8>) -> Result<Page, String> {
     let mut page: Page = Page::default();
     // find page exists already
 
     // if exists, return it
 
     //else...
-    page = build_new_page(prelim_row_data);
+    page = build_new_page(prelim_row_data, table).map_err(|e| e.to_string())?;
 
-    return page;
+    return Ok(page);
 }
 
 fn find_open_page(prelim_row_data: &Vec<u8>) -> Page {
@@ -132,7 +140,7 @@ fn read_page_bytes(page: &[u8]) -> Page {
 fn find_existing_page(table_name: &str, prelim_row_data: &Vec<u8>) -> Result<Page, String> {
     let mut page: Page = Page::default();
 
-    let schema_path = format!("database/table/{}.asra", table_name);
+    let schema_path = format!("database/table/{}.asera", table_name);
 
     let mut file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
 
@@ -147,6 +155,8 @@ fn find_existing_page(table_name: &str, prelim_row_data: &Vec<u8>) -> Result<Pag
             .map_err(|e| e.to_string())?;
 
         file.read_exact(&mut page.data).map_err(|e| e.to_string())?;
+
+        println!("{:?}", file);
     }
 
     return Ok(page);
