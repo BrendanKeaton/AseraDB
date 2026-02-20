@@ -3,19 +3,24 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use crate::{
-    core::{FieldTypesAllowed, Page, QueryObject, TableMetadataObject, ValueTypes},
+    core::{
+        FieldTypesAllowed, PAGE_HEADER_SIZE_ON_CREATE, PAGE_SIZE, Page, QueryObject,
+        TableMetadataObject, ValueTypes,
+    },
     parsing::get_table_schema,
 };
 
-pub const PAGE_SIZE: usize = 4096; // This should become a gloabl const in ../core : TODO
+/*
 
+
+*/
 pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
     let schema = get_table_schema(&query.table)?;
-
     let row_bytes = build_row_byte(&schema, &query.values)?;
+    let row_len: u64 = row_bytes.len() as u64;
 
-    println!("Inserting row bytes: {:?}", row_bytes); // Test command is : insert profile billy:24:172912
-    let _ = find_page(&query.table, row_bytes);
+    println!("Inserting row bytes: {:?}", row_bytes); // Test command is : insert profile 1:brendan:24
+    let _ = find_page(&query.table, &row_bytes, row_len);
 
     return Ok(());
 }
@@ -74,63 +79,55 @@ fn build_row_byte(schema: &TableMetadataObject, values: &[ValueTypes]) -> Result
     Ok(result)
 }
 
-fn build_new_page(prelim_row_data: &Vec<u8>, table_name: &str) -> Result<Page, String> {
-    let page_header_size: u16 = 8 as u16; // this should go into a "consts" file of some sort
+fn build_new_page(row_data: &[u8], table_name: &str, row_len: u64) -> Result<Page, String> {
     let mut page: Page = Page::default();
 
     let schema_path = format!("database/tables/{}.asera", table_name);
-    let path = Path::new(&schema_path);
-
-    let curr_page_id: u64;
-    if path.exists() {
-        let file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
-
-        let metadata = file.metadata().map_err(|e| e.to_string())?;
-        curr_page_id = metadata.len() / PAGE_SIZE as u64;
-    } else {
-        curr_page_id = 0;
-        File::create(path).expect("Failed to create table file");
-    }
+    let file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
+    let metadata = file.metadata().map_err(|e| e.to_string())?;
+    let curr_page_id = metadata.len() / PAGE_SIZE as u64;
 
     page.id = curr_page_id;
 
     page.data[0] = 1 as u8; // id - 1b
     page.data[1] = 1 as u8; // row_count - 1b
 
-    let len: u16 = prelim_row_data.len() as u16;
-    let bytes = len.to_le_bytes();
+    let bytes = row_len.to_le_bytes();
     // len of current rows of data, max ~65k (over a page size, but u8 is too small). This is saved to the "free page offset"
     // To calculate the next page of offset, you would just take this value, and minus the new
     // rows length
     page.data[2..4].copy_from_slice(&bytes);
 
-    let data_used: u16 = page_header_size + len;
+    let data_used: u16 = PAGE_HEADER_SIZE_ON_CREATE + row_len as u16;
     let space_remaining: u16 = PAGE_SIZE as u16 - data_used;
     page.data[4..6].copy_from_slice(&space_remaining.to_le_bytes()); // This is the amount of space remaining.. update on insert / delete
 
     // This is Last Sequence Number (for WAL recovery)... this needs to be updated as the "actual" value once WAL is created in this repo TODO
     page.data[6] = 0 as u8;
-    let new_row_start = PAGE_SIZE - len as usize;
-    page.data[new_row_start..PAGE_SIZE].copy_from_slice(prelim_row_data);
+
+    // This is a u16 of the size of the header. Including the row sizes in order
+    let page_header_size_with_first_slot = PAGE_HEADER_SIZE_ON_CREATE + 4;
+    page.data[7..9].copy_from_slice(&page_header_size_with_first_slot.to_le_bytes());
+    let new_row_start = PAGE_SIZE - row_len as usize;
+    page.data[new_row_start..PAGE_SIZE].copy_from_slice(row_data);
 
     let _ = insert_page(table_name, &page);
 
     return Ok(page);
 }
 
-fn find_page(table_name: &str, row_bytes: Vec<u8>) -> Result<Page, String> {
+fn find_page(table_name: &str, row_bytes: &[u8], row_len: u64) -> Result<Page, String> {
     let mut page: Page = Page::default();
     let schema_path = format!("database/tables/{}.asera", table_name);
 
     if !Path::new(&schema_path).exists() {
-        let page = build_new_page(&row_bytes, table_name)?;
+        let page = build_new_page(&row_bytes, table_name, row_len)?;
         return Ok(page);
     }
     let mut file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
 
     let metadata = file.metadata().map_err(|e| e.to_string())?;
     let file_len = metadata.len();
-    let row_len: u64 = row_bytes.len() as u64;
 
     for curr_page_id in 0..(file_len / PAGE_SIZE as u64) {
         file.seek(SeekFrom::Start(curr_page_id * PAGE_SIZE as u64))
@@ -173,7 +170,7 @@ fn find_page(table_name: &str, row_bytes: Vec<u8>) -> Result<Page, String> {
         }
         println!("{:?}", file);
     }
-    page = build_new_page(&row_bytes, &table_name).map_err(|e| e.to_string())?;
+    page = build_new_page(&row_bytes, &table_name, row_len).map_err(|e| e.to_string())?;
     return Ok(page);
 }
 

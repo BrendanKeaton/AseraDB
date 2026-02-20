@@ -1,5 +1,5 @@
 use crate::core::{FieldObject, QueryObject, TableMetadataObject};
-use std::fs;
+use std::fs::{self, File};
 
 pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
     let table_name = query.table.clone();
@@ -42,6 +42,10 @@ pub fn create_new_table(query: &mut QueryObject) -> Result<(), String> {
         .map_err(|e| format!("Failed to serialize metadata: {}", e))?;
 
     fs::write(&file_path, json).map_err(|e| format!("Failed to write table file: {}", e))?;
+
+    let dir_path_table = "database/tables";
+    let file_path = format!("{}/{}.asera", dir_path_table, table_name);
+    File::create(file_path).map_err(|e| format!("Failed to create database directory: {}", e))?;
 
     Ok(())
 }

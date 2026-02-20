@@ -1,4 +1,4 @@
-pub const PAGE_SIZE: usize = 4096;
+use crate::core::PAGE_SIZE;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Page {

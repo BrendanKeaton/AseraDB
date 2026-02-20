@@ -2,19 +2,19 @@
   "table_name": "profile",
   "fields": [
     {
-      "name": "user",
-      "data_type": "String",
+      "name": "id",
+      "data_type": "I32",
       "is_indexed": false
+    },
+    {
+      "name": "name",
+      "data_type": "String",
+      "is_indexed": true
     },
     {
       "name": "age",
       "data_type": "I8",
       "is_indexed": false
-    },
-    {
-      "name": "id",
-      "data_type": "I32",
-      "is_indexed": true
     }
   ]
 }

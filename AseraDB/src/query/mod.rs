@@ -1,5 +1,6 @@
 pub mod commands;
 pub mod insert;
+pub mod utils;
 
 use crate::core::Command;
 use crate::core::QueryObject;

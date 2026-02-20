@@ -11,8 +11,8 @@ pub enum FieldTypesAllowed {
 impl FieldTypesAllowed {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "I8" => Some(FieldTypesAllowed::I8),
-            "I32" => Some(FieldTypesAllowed::I32),
+            "i8" => Some(FieldTypesAllowed::I8),
+            "i32" => Some(FieldTypesAllowed::I32),
             "string" => Some(FieldTypesAllowed::String),
             _ => None,
         }

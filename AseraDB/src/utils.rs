@@ -39,7 +39,7 @@ pub fn handle_sql_parsing(input: &str, query: &mut QueryObject) -> bool {
             }
             TokenType::VALUE(value_types) => {
                 println!(
-                    "Malformed Request. Please rewrite and try again. {}",
+                    "Malformed Request. Please rewrite and try again {}",
                     value_types
                 );
                 return false;

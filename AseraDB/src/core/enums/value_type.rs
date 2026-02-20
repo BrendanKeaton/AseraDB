@@ -28,17 +28,6 @@ impl ValueTypes {
 }
 
 impl ValueTypes {
-    pub fn to_json(&self) -> serde_json::Value {
-        match self {
-            ValueTypes::String(s) => serde_json::Value::String(s.clone()),
-            ValueTypes::Number(n) => serde_json::Value::Number((*n).into()),
-            ValueTypes::STAR => serde_json::Value::String("*".into()),
-            ValueTypes::COMMA => serde_json::Value::String(",".into()),
-        }
-    }
-}
-
-impl ValueTypes {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             ValueTypes::String(s) => Some(s.as_str()),
