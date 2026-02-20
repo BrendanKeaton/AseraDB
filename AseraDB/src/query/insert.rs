@@ -1,26 +1,30 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::path::Path;
 
 use crate::{
     core::{
-        FieldTypesAllowed, PAGE_HEADER_SIZE_ON_CREATE, PAGE_SIZE, Page, QueryObject,
-        TableMetadataObject, ValueTypes,
+        FieldTypesAllowed, PAGE_HEADER_SIZE_ON_CREATE, PAGE_HEADER_SLOT_SIZE_FOR_ROW, PAGE_SIZE,
+        Page, QueryObject, TableMetadataObject, ValueTypes,
     },
     parsing::get_table_schema,
 };
 
 /*
-
-
+Parent method for inserting new data.
+steps:
+1) Determine information that needs to be known (file, file_length, page, row_len of new row, etc)
+2) call "find_page"
 */
 pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
     let schema = get_table_schema(&query.table)?;
     let row_bytes = build_row_byte(&schema, &query.values)?;
     let row_len: u64 = row_bytes.len() as u64;
+    let schema_path = format!("database/tables/{}.asera", &query.table);
+    let file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
+    let file_length = file.metadata().map_err(|e| e.to_string())?.len();
 
     println!("Inserting row bytes: {:?}", row_bytes); // Test command is : insert profile 1:brendan:24
-    let _ = find_page(&query.table, &row_bytes, row_len);
+    let _ = find_page(&query.table, &row_bytes, row_len, file_length, file);
 
     return Ok(());
 }
@@ -79,20 +83,22 @@ fn build_row_byte(schema: &TableMetadataObject, values: &[ValueTypes]) -> Result
     Ok(result)
 }
 
-fn build_new_page(row_data: &[u8], table_name: &str, row_len: u64) -> Result<Page, String> {
+fn build_new_page(
+    row_data: &[u8],
+    table_name: &str,
+    row_len: u64,
+    file_len: u64,
+) -> Result<Page, String> {
     let mut page: Page = Page::default();
 
-    let schema_path = format!("database/tables/{}.asera", table_name);
-    let file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
-    let metadata = file.metadata().map_err(|e| e.to_string())?;
-    let curr_page_id = metadata.len() / PAGE_SIZE as u64;
+    let curr_page_id = file_len / PAGE_SIZE as u64;
 
     page.id = curr_page_id;
 
     page.data[0] = 1 as u8; // id - 1b
     page.data[1] = 1 as u8; // row_count - 1b
 
-    let bytes = row_len.to_le_bytes();
+    let bytes = (row_len as u16).to_le_bytes();
     // len of current rows of data, max ~65k (over a page size, but u8 is too small). This is saved to the "free page offset"
     // To calculate the next page of offset, you would just take this value, and minus the new
     // rows length
@@ -110,24 +116,27 @@ fn build_new_page(row_data: &[u8], table_name: &str, row_len: u64) -> Result<Pag
     page.data[7..9].copy_from_slice(&page_header_size_with_first_slot.to_le_bytes());
     let new_row_start = PAGE_SIZE - row_len as usize;
     page.data[new_row_start..PAGE_SIZE].copy_from_slice(row_data);
+    // we arent setting bytes 9-10 or 11-12 for freed space and offset, because they are 0 by default
+    page.data[12..14].copy_from_slice(&(row_len as u16).to_le_bytes());
 
     let _ = insert_page(table_name, &page);
 
     return Ok(page);
 }
 
-fn find_page(table_name: &str, row_bytes: &[u8], row_len: u64) -> Result<Page, String> {
+fn find_page(
+    table_name: &str,
+    row_bytes: &[u8],
+    row_len: u64,
+    file_len: u64,
+    mut file: File,
+) -> Result<Page, String> {
     let mut page: Page = Page::default();
-    let schema_path = format!("database/tables/{}.asera", table_name);
 
-    if !Path::new(&schema_path).exists() {
-        let page = build_new_page(&row_bytes, table_name, row_len)?;
+    if file_len == 0 {
+        let page = build_new_page(&row_bytes, table_name, row_len, file_len)?;
         return Ok(page);
     }
-    let mut file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
-
-    let metadata = file.metadata().map_err(|e| e.to_string())?;
-    let file_len = metadata.len();
 
     for curr_page_id in 0..(file_len / PAGE_SIZE as u64) {
         file.seek(SeekFrom::Start(curr_page_id * PAGE_SIZE as u64))
@@ -141,41 +150,52 @@ fn find_page(table_name: &str, row_bytes: &[u8], row_len: u64) -> Result<Page, S
                 .map_err(|_| "Corrupt page header")?,
         );
 
-        if space_remaining as u64 > row_len {
+        if space_remaining as u64 > row_len + PAGE_HEADER_SLOT_SIZE_FOR_ROW {
+            // this section just updates all the bytes in the page accordingly... IE
+            // the row count, free space left, adds the row to the back of page, adds slot, etc
             page.pin_count += 1;
             page.dirty = true;
             page.id = curr_page_id;
             page.data[1] += 1;
+
             let current_offset = u16::from_le_bytes(
                 page.data[2..4]
                     .try_into()
                     .map_err(|_| "Corrupt page header")?,
             );
+
             let start_new_data: usize = PAGE_SIZE - current_offset as usize - row_len as usize;
             let end_new_data = start_new_data + row_len as usize;
             page.data[start_new_data..end_new_data].copy_from_slice(&row_bytes);
+            let current_header_size = u16::from_le_bytes(
+                page.data[7..9]
+                    .try_into()
+                    .map_err(|_| "Corrupt page header")?,
+            );
+            let slot_start = current_header_size as usize;
+            page.data[slot_start..slot_start + 2]
+                .copy_from_slice(&(start_new_data as u16).to_le_bytes());
+            page.data[slot_start + 2..slot_start + 4]
+                .copy_from_slice(&(row_len as u16).to_le_bytes());
+            let new_header_size = current_header_size + PAGE_HEADER_SLOT_SIZE_FOR_ROW as u16;
+            page.data[7..9].copy_from_slice(&new_header_size.to_le_bytes());
             let new_offset = current_offset + row_len as u16;
+            page.data[2..4].copy_from_slice(&new_offset.to_le_bytes());
             let current_space_remaining = u16::from_le_bytes(
                 page.data[4..6]
                     .try_into()
                     .map_err(|_| "Corrupt page header")?,
             );
-            let new_space_remaining = current_space_remaining - row_len as u16;
-            // TODO update LSN once WAL is implemented
-            page.data[2..4].copy_from_slice(&new_offset.to_le_bytes());
+            let new_space_remaining =
+                current_space_remaining - row_len as u16 - PAGE_HEADER_SLOT_SIZE_FOR_ROW as u16;
             page.data[4..6].copy_from_slice(&new_space_remaining.to_le_bytes());
 
             let _ = insert_page(table_name, &page);
             return Ok(page);
         }
-        println!("{:?}", file);
     }
-    page = build_new_page(&row_bytes, &table_name, row_len).map_err(|e| e.to_string())?;
+    page = build_new_page(&row_bytes, &table_name, row_len, file_len).map_err(|e| e.to_string())?;
     return Ok(page);
-}
-
-fn update_page_bytes(page: &[u8]) -> Page {
-    return Page::default(); // placeholder to get an error to stop yelling at me
 }
 
 fn insert_page(table_name: &str, page: &Page) -> Result<(), String> {
