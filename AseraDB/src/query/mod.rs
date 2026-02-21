@@ -1,6 +1,6 @@
 pub mod commands;
 pub mod insert;
-pub mod utils;
+pub mod select;
 
 use crate::core::Command;
 use crate::core::QueryObject;
@@ -8,7 +8,7 @@ use crate::core::QueryObject;
 pub fn handle_query(query: &mut QueryObject) -> Result<bool, String> {
     match query.command {
         Some(Command::SELECT) => {
-            println!("Not implemented");
+            let _ = select::read_data(query);
         }
         Some(Command::CREATE) => {
             let _ = commands::create_new_table(query);

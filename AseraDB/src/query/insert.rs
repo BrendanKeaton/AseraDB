@@ -24,7 +24,8 @@ pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
     let file_length = file.metadata().map_err(|e| e.to_string())?.len();
 
     println!("Inserting row bytes: {:?}", row_bytes); // Test command is : insert profile 1:brendan:24
-    let _ = find_page(&query.table, &row_bytes, row_len, file_length, file);
+    let _page = find_page(&query.table, &row_bytes, row_len, file_length, file)
+        .map_err(|e| e.to_string())?;
 
     return Ok(());
 }
@@ -95,7 +96,9 @@ fn build_new_page(
 
     page.id = curr_page_id;
 
-    page.data[0] = 1 as u8; // id - 1b
+    page.data[0] = (file_len / PAGE_SIZE as u64) as u8;
+
+    // TODO guard against 255 row overflow
     page.data[1] = 1 as u8; // row_count - 1b
 
     let bytes = (row_len as u16).to_le_bytes();
@@ -150,7 +153,7 @@ fn find_page(
                 .map_err(|_| "Corrupt page header")?,
         );
 
-        if space_remaining as u64 > row_len + PAGE_HEADER_SLOT_SIZE_FOR_ROW {
+        if space_remaining as u64 >= row_len + PAGE_HEADER_SLOT_SIZE_FOR_ROW {
             // this section just updates all the bytes in the page accordingly... IE
             // the row count, free space left, adds the row to the back of page, adds slot, etc
             page.pin_count += 1;
