@@ -74,7 +74,7 @@ fn build_row_byte(schema: &TableMetadataObject, values: &[ValueTypes]) -> Result
     }
 
     let mut result: Vec<u8> = Vec::new();
-    let row_header_size = 1 + num_columns;
+    let row_header_size = 2 + num_columns;
 
     result.push(row_header_size as u8);
     result.push(num_columns as u8);
@@ -120,7 +120,7 @@ fn build_new_page(
     let new_row_start = PAGE_SIZE - row_len as usize;
     page.data[new_row_start..PAGE_SIZE].copy_from_slice(row_data);
     // we arent setting bytes 9-10 or 11-12 for freed space and offset, because they are 0 by default
-    page.data[12..14].copy_from_slice(&(row_len as u16).to_le_bytes());
+    page.data[13..15].copy_from_slice(&(row_len as u16).to_le_bytes());
 
     let _ = insert_page(table_name, &page);
 
@@ -176,8 +176,7 @@ fn find_page(
                     .map_err(|_| "Corrupt page header")?,
             );
             let slot_start = current_header_size as usize;
-            page.data[slot_start..slot_start + 2]
-                .copy_from_slice(&(start_new_data as u16).to_le_bytes());
+            page.data[slot_start..slot_start + 2].copy_from_slice(&current_offset.to_le_bytes());
             page.data[slot_start + 2..slot_start + 4]
                 .copy_from_slice(&(row_len as u16).to_le_bytes());
             let new_header_size = current_header_size + PAGE_HEADER_SLOT_SIZE_FOR_ROW as u16;
@@ -204,7 +203,8 @@ fn find_page(
 fn insert_page(table_name: &str, page: &Page) -> Result<(), String> {
     let schema_path = format!("database/tables/{}.asera", table_name);
 
-    println!("new page: {:?}", page);
+    // FOR DEBUGGING
+    // println!("new page: {:?}", page);
 
     let mut file = OpenOptions::new()
         .create(true)

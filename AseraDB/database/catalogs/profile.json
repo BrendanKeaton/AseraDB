@@ -3,7 +3,7 @@
   "fields": [
     {
       "name": "id",
-      "data_type": "I32",
+      "data_type": "I8",
       "is_indexed": false
     },
     {

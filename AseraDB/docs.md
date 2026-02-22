@@ -12,7 +12,7 @@ page header:
 (byte 9-10): Total Freed space: DIFFERENT than space remaining. This tracks deletions. If it gets to a certain size, readjust page.
 Rest of bytes: Slots / Data
 
-Slots are handled with 2 bytes of offset, and then 2 bytes of length.
+Slots are handled with 2 bytes of length, and then 2 bytes of offset from BACK of the page (ie, first row offset of 0).
 if a slot is open, offset is set to 0xFFFF, this is so that length can be found still to find open spots for new rows.
 in the event this happens, we insert with O(n) by scanning the page from the previous slot to find the new opening in order.
 this will be optimized in the future.

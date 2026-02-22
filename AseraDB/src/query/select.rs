@@ -16,6 +16,7 @@ pub fn read_data(query: &mut QueryObject) -> Result<(), String> {
     let schema_path = format!("database/tables/{}.asera", &query.table);
     let file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
     let file_length = file.metadata().map_err(|e| e.to_string())?.len();
+    read_sequential(query, file, file_length, schema);
     Ok(())
 }
 
@@ -28,12 +29,68 @@ pub fn read_sequential(
     let mut page_data: [u8; PAGE_SIZE] = [0; PAGE_SIZE];
     let num_pages: u64 = file_len / PAGE_SIZE as u64;
 
-    for curr_page_id in 1..num_pages {
+    for curr_page_id in 0..num_pages {
         file.seek(SeekFrom::Start(curr_page_id * PAGE_SIZE as u64))
             .map_err(|e| e.to_string())?;
 
         file.read_exact(&mut page_data).map_err(|e| e.to_string())?;
+
+        if curr_page_id as u8 != page_data[0] {
+            return Err("Page ID mismatch".to_string());
+        }
+
+        let row_count = page_data[1];
+
+        for row in 0..row_count {
+            let curr_slot_offset = row * 4 + 11;
+            let row_offset = u16::from_le_bytes(
+                page_data[curr_slot_offset as usize..(curr_slot_offset as usize + 2)]
+                    .try_into()
+                    .unwrap(),
+            );
+            let row_length = u16::from_le_bytes(
+                page_data[curr_slot_offset as usize + 2..(curr_slot_offset as usize + 4)]
+                    .try_into()
+                    .unwrap(),
+            );
+
+            let row_start = PAGE_SIZE - row_length as usize - row_offset as usize;
+            let row_end = row_start + row_length as usize;
+            let row_bytes = &page_data[row_start..row_end];
+
+            let decoded_row = decode_row(row_bytes, &schema)?;
+            println!("{:?}", decoded_row);
+        }
     }
 
     Ok(())
+}
+
+fn decode_row(row_bytes: &[u8], schema: &TableMetadataObject) -> Result<Vec<String>, String> {
+    let header_size = row_bytes[0] as usize;
+    let num_columns = row_bytes[1] as usize;
+    let col_lengths = &row_bytes[2..2 + num_columns];
+    let mut data_offset = header_size;
+
+    let mut values: Vec<String> = Vec::new();
+
+    for (i, field) in schema.fields.iter().enumerate() {
+        let len = col_lengths[i] as usize;
+        let field_bytes = &row_bytes[data_offset..data_offset + len];
+
+        let value = match field.data_type {
+            FieldTypesAllowed::I8 => (field_bytes[0] as i8).to_string(),
+            FieldTypesAllowed::I32 => {
+                let arr: [u8; 4] = field_bytes.try_into().map_err(|_| "corrupt I32")?;
+                i32::from_le_bytes(arr).to_string()
+            }
+            FieldTypesAllowed::String => String::from_utf8(field_bytes.to_vec())
+                .map_err(|_| format!("invalid UTF-8 in field '{}'", field.name))?,
+        };
+
+        values.push(value);
+        data_offset += len;
+    }
+
+    Ok(values)
 }
