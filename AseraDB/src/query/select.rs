@@ -3,6 +3,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 
 use sqlparser::ast::Table;
 
+use crate::query::select;
 use crate::{
     core::{
         FieldTypesAllowed, PAGE_HEADER_SIZE_ON_CREATE, PAGE_HEADER_SLOT_SIZE_FOR_ROW, PAGE_SIZE,
@@ -16,7 +17,7 @@ pub fn read_data(query: &mut QueryObject) -> Result<(), String> {
     let schema_path = format!("database/tables/{}.asera", &query.table);
     let file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
     let file_length = file.metadata().map_err(|e| e.to_string())?.len();
-    read_sequential(query, file, file_length, schema);
+    let _ = read_sequential(query, file, file_length, schema);
     Ok(())
 }
 
@@ -28,6 +29,8 @@ pub fn read_sequential(
 ) -> Result<(), String> {
     let mut page_data: [u8; PAGE_SIZE] = [0; PAGE_SIZE];
     let num_pages: u64 = file_len / PAGE_SIZE as u64;
+
+    let selected_column_ids = get_selected_column_ids(query, &schema)?;
 
     for curr_page_id in 0..num_pages {
         file.seek(SeekFrom::Start(curr_page_id * PAGE_SIZE as u64))
@@ -58,7 +61,7 @@ pub fn read_sequential(
             let row_end = row_start + row_length as usize;
             let row_bytes = &page_data[row_start..row_end];
 
-            let decoded_row = decode_row(row_bytes, &schema)?;
+            let decoded_row = decode_row(row_bytes, &schema, &selected_column_ids)?;
             println!("{:?}", decoded_row);
         }
     }
@@ -66,7 +69,11 @@ pub fn read_sequential(
     Ok(())
 }
 
-fn decode_row(row_bytes: &[u8], schema: &TableMetadataObject) -> Result<Vec<String>, String> {
+fn decode_row(
+    row_bytes: &[u8],
+    schema: &TableMetadataObject,
+    selected_column_ids: &Vec<u8>,
+) -> Result<Vec<String>, String> {
     let header_size = row_bytes[0] as usize;
     let num_columns = row_bytes[1] as usize;
     let col_lengths = &row_bytes[2..2 + num_columns];
@@ -78,19 +85,47 @@ fn decode_row(row_bytes: &[u8], schema: &TableMetadataObject) -> Result<Vec<Stri
         let len = col_lengths[i] as usize;
         let field_bytes = &row_bytes[data_offset..data_offset + len];
 
-        let value = match field.data_type {
-            FieldTypesAllowed::I8 => (field_bytes[0] as i8).to_string(),
-            FieldTypesAllowed::I32 => {
-                let arr: [u8; 4] = field_bytes.try_into().map_err(|_| "corrupt I32")?;
-                i32::from_le_bytes(arr).to_string()
-            }
-            FieldTypesAllowed::String => String::from_utf8(field_bytes.to_vec())
-                .map_err(|_| format!("invalid UTF-8 in field '{}'", field.name))?,
-        };
+        if selected_column_ids.contains(&(i as u8)) {
+            let value = match field.data_type {
+                FieldTypesAllowed::I8 => (field_bytes[0] as i8).to_string(),
 
-        values.push(value);
+                FieldTypesAllowed::I32 => {
+                    let arr: [u8; 4] = field_bytes.try_into().map_err(|_| "corrupt I32")?;
+                    i32::from_le_bytes(arr).to_string()
+                }
+
+                FieldTypesAllowed::String => String::from_utf8(field_bytes.to_vec())
+                    .map_err(|_| format!("invalid UTF-8 in field '{}'", field.name))?,
+            };
+
+            values.push(value);
+        }
+
         data_offset += len;
     }
 
     Ok(values)
+}
+
+fn get_selected_column_ids(
+    query: &QueryObject,
+    schema: &TableMetadataObject,
+) -> Result<Vec<u8>, String> {
+    let mut return_vec: Vec<u8> = Vec::new();
+
+    if query.fields.iter().any(|f| matches!(f, ValueTypes::STAR)) {
+        return Ok((0..schema.fields.len()).map(|i| i as u8).collect());
+    }
+
+    for (index, field) in schema.fields.iter().enumerate() {
+        if query
+            .fields
+            .iter()
+            .any(|qf| qf.as_str().map_or(false, |name| name == field.name))
+        {
+            return_vec.push(index as u8);
+        }
+    }
+    println!("{:?}", return_vec);
+    Ok(return_vec)
 }

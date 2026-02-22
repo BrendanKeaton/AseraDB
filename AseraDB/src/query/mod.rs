@@ -1,4 +1,4 @@
-pub mod commands;
+pub mod create;
 pub mod insert;
 pub mod select;
 
@@ -11,7 +11,7 @@ pub fn handle_query(query: &mut QueryObject) -> Result<bool, String> {
             let _ = select::read_data(query);
         }
         Some(Command::CREATE) => {
-            let _ = commands::create_new_table(query);
+            let _ = create::create_new_table(query);
         }
         Some(Command::INSERT) => {
             let _ = insert::insert_new_data(query);
