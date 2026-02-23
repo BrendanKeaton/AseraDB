@@ -1,16 +1,9 @@
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom, Write};
-
-use sqlparser::ast::Table;
-
-use crate::query::select;
 use crate::{
-    core::{
-        FieldTypesAllowed, PAGE_HEADER_SIZE_ON_CREATE, PAGE_HEADER_SLOT_SIZE_FOR_ROW, PAGE_SIZE,
-        Page, QueryObject, TableMetadataObject, ValueTypes,
-    },
+    core::{FieldTypesAllowed, PAGE_SIZE, QueryObject, TableMetadataObject, ValueTypes},
     parsing::get_table_schema,
 };
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 
 pub fn read_data(query: &mut QueryObject) -> Result<(), String> {
     let schema: TableMetadataObject = get_table_schema(&query.table)?;
@@ -126,6 +119,5 @@ fn get_selected_column_ids(
             return_vec.push(index as u8);
         }
     }
-    println!("{:?}", return_vec);
     Ok(return_vec)
 }

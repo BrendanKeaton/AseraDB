@@ -143,3 +143,10 @@ pub fn handle_from(tokens: &[&str], query: &mut QueryObject) -> Result<bool, &'s
 
     return Ok(true);
 }
+
+pub fn handle_delete(query: &mut QueryObject) -> Result<bool, String> {
+    query.command = Some(Command::DELETE);
+    query.index += 1;
+
+    return Ok(true);
+}

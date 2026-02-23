@@ -1,6 +1,8 @@
 use crate::{
     core::{Command, Filter, Operand, TokenType, ValueTypes, structs::QueryObject},
-    parsing::{handle_create, handle_from, handle_insert, handle_select, handle_where},
+    parsing::{
+        handle_create, handle_delete, handle_from, handle_insert, handle_select, handle_where,
+    },
 };
 
 pub fn handle_sql_parsing(input: &str, query: &mut QueryObject) -> bool {
@@ -68,6 +70,7 @@ fn match_command(
         Command::SELECT => handle_select(tokens, query),
         Command::INSERT => handle_insert(tokens, query),
         Command::CREATE => handle_create(tokens, query),
+        Command::DELETE => handle_delete(query),
         Command::EXIT => return Ok(false),
     }
 }

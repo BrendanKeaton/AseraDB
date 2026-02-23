@@ -72,7 +72,7 @@ pub fn get_field_names(table_name: &str) -> Result<Vec<String>, &'static str> {
     let mut field_names: Vec<String> = Vec::new();
 
     for each in table_schema.fields {
-        field_names.push(each.name[1..each.name.len() - 1].to_owned());
+        field_names.push(each.name.to_owned());
     }
 
     return Ok(field_names);

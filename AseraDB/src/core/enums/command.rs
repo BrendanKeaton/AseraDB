@@ -5,6 +5,7 @@ pub enum Command {
     INSERT,
     SELECT,
     CREATE,
+    DELETE,
     EXIT,
 }
 
@@ -14,6 +15,7 @@ impl Command {
             "select" => Some(Command::SELECT),
             "insert" => Some(Command::INSERT),
             "create" => Some(Command::CREATE),
+            "delete" => Some(Command::DELETE),
             "exit" => Some(Command::EXIT),
             _ => None,
         }
@@ -26,6 +28,7 @@ impl fmt::Display for Command {
             Command::INSERT => write!(f, "INSERT"),
             Command::SELECT => write!(f, "SELECT"),
             Command::CREATE => write!(f, "CREATE"),
+            Command::DELETE => write!(f, "DELETE"),
             Command::EXIT => write!(f, "EXIT"),
         }
     }

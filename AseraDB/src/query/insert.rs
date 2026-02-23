@@ -23,7 +23,7 @@ pub fn insert_new_data(query: &mut QueryObject) -> Result<(), String> {
     let file: File = File::open(&schema_path).map_err(|e| e.to_string())?;
     let file_length = file.metadata().map_err(|e| e.to_string())?.len();
 
-    println!("Inserting row bytes: {:?}", row_bytes); // Test command is : insert profile 1:brendan:24
+    // println!("Inserting row bytes: {:?}", row_bytes); // Test command is : insert profile 1:brendan:24
     let _page = find_page(&query.table, &row_bytes, row_len, file_length, file)
         .map_err(|e| e.to_string())?;
 

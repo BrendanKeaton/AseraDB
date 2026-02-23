@@ -16,6 +16,9 @@ pub fn handle_query(query: &mut QueryObject) -> Result<bool, String> {
         Some(Command::INSERT) => {
             let _ = insert::insert_new_data(query);
         }
+        Some(Command::DELETE) => {
+            println!("Not yet handled")
+        }
         Some(Command::EXIT) => {
             return Ok(false);
         }
