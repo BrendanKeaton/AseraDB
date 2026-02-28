@@ -19,7 +19,7 @@ pub fn handle_query(query: &mut QueryObject) -> Result<bool, String> {
             let _ = insert::insert_new_data(query);
         }
         Some(Command::DELETE) => {
-            println!("Not yet handled")
+            let _ = delete::delete_row_by_condition(query);
         }
         Some(Command::EXIT) => {
             return Ok(false);

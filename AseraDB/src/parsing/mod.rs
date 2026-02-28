@@ -96,7 +96,12 @@ pub fn handle_insert(tokens: &[&str], query: &mut QueryObject) -> Result<bool, S
 }
 
 pub fn handle_where(tokens: &[&str], query: &mut QueryObject) -> Result<bool, &'static str> {
-    query.index += 1; // Move passed "WHERE", and dont save to query object direclty
+    if tokens[query.index].to_owned() == "and" && query.conditions.len() == 0 {
+        query.index += 1;
+        return Err("Malformed request. Please use where statement before 'and'. ");
+    }
+
+    query.index += 1; // Move passed "WHERE", and dont save to query object direclty. If its "AND", and passed above check, same deal
 
     let table = get_field_names(&query.table)?;
 

@@ -17,3 +17,11 @@ if a slot is open, offset is set to 0xFFFF, this is so that length can be found 
 in the event this happens, we insert with O(n) by scanning the page from the previous slot to find the new opening in order.
 this will be optimized in the future.
 }
+
+row byte information:
+{
+(byte 0) header size: total size of the row header in bytes
+(byte 1) num columns: number of columns in the row
+(bytes 2..2+num_columns) column lengths: one byte per column, each defining the length of that column's data in bytes
+(bytes header_size..end) column data: column values stored sequentially in schema order, each column's data spanning the number of bytes defined in its corresponding column length entry
+}

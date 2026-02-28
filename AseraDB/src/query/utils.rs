@@ -25,6 +25,27 @@ pub fn get_selected_column_ids(
     Ok(return_vec)
 }
 
+pub fn get_selected_column_ids_in_conditional(
+    query: &QueryObject,
+    schema: &TableMetadataObject,
+) -> Result<Vec<u8>, String> {
+    let mut return_vec: Vec<u8> = Vec::new();
+
+    if query.fields.iter().any(|f| matches!(f, ValueTypes::STAR)) {
+        return Ok((0..schema.fields.len()).map(|i| i as u8).collect());
+    }
+
+    for (index, field) in schema.fields.iter().enumerate() {
+        if query.conditions.iter().any(|qf| {
+            (qf.object_one_is_field && qf.object_one == field.name)
+                || (qf.object_two_is_field && qf.object_two == field.name)
+        }) {
+            return_vec.push(index as u8);
+        }
+    }
+    Ok(return_vec)
+}
+
 pub fn parse_sequential(
     query: &QueryObject,
     mut file: File,
@@ -67,8 +88,13 @@ pub fn parse_sequential(
             let row_bytes = &page_data[row_start..row_end];
             let mut decoded_row: Vec<String> = Vec::new();
             if action == "delete" {
-                // do a where check on the query passed in before, also this should not be "decoded row"
-                let _ = delete_row(curr_slot_offset, &file)?;
+                let selected_conditional_column_ids =
+                    get_selected_column_ids_in_conditional(query, &schema)?;
+                let should_delete: bool =
+                    should_delete_row(row_bytes, &query, selected_conditional_column_ids)?;
+                if should_delete {
+                    let _ = delete_row(row_start, row_end, &file)?;
+                }
             } else {
                 decoded_row = decode_row(row_bytes, &schema, &selected_column_ids)?;
             }
@@ -175,6 +201,20 @@ pub fn build_row_byte(
     Ok(result)
 }
 
-pub fn delete_row(row_slot_offset: u8, file: &File) -> Result<(), String> {
+pub fn delete_row(row_start: usize, row_end: usize, file: &File) -> Result<(), String> {
     return Ok(());
+}
+
+pub fn should_delete_row(
+    row_bytes: &[u8],
+    query: &QueryObject,
+    column_ids: Vec<u8>,
+) -> Result<bool, String> {
+    println!("{}", query);
+
+    println!("{:?}", row_bytes);
+
+    println!("{:?}", column_ids);
+
+    return Ok(true);
 }

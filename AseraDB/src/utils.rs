@@ -83,5 +83,6 @@ fn match_filter(
     match filter {
         Filter::FROM => handle_from(tokens, query),
         Filter::WHERE => handle_where(tokens, query),
+        Filter::AND => handle_where(tokens, query),
     }
 }

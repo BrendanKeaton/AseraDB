@@ -4,6 +4,7 @@ use std::fmt;
 pub enum Filter {
     FROM,
     WHERE,
+    AND,
 }
 
 impl Filter {
@@ -11,6 +12,7 @@ impl Filter {
         match s {
             "from" => Some(Filter::FROM),
             "where" => Some(Filter::WHERE),
+            "and" => Some(Filter::AND),
             _ => None,
         }
     }
@@ -21,6 +23,7 @@ impl fmt::Display for Filter {
         match self {
             Filter::FROM => write!(f, "FROM"),
             Filter::WHERE => write!(f, "WHERE"),
+            Filter::AND => write!(f, "AND"),
         }
     }
 }
