@@ -4,7 +4,7 @@ use std::fmt;
 pub enum Operand {
     #[default]
     EQ,
-    GE,
+    GT,
     GTE,
     LT,
     LTE,
@@ -14,7 +14,7 @@ pub enum Operand {
 impl Operand {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            ">" => Some(Operand::GE),
+            ">" => Some(Operand::GT),
             ">=" => Some(Operand::GTE),
             "=" | "==" => Some(Operand::EQ),
             "<" => Some(Operand::LT),
@@ -29,7 +29,7 @@ impl fmt::Display for Operand {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Operand::EQ => write!(f, "="),
-            Operand::GE => write!(f, ">"),
+            Operand::GT => write!(f, ">"),
             Operand::GTE => write!(f, ">="),
             Operand::LT => write!(f, "<"),
             Operand::LTE => write!(f, "<="),

@@ -18,6 +18,9 @@ in the event this happens, we insert with O(n) by scanning the page from the pre
 this will be optimized in the future.
 }
 
+** this implementation has a major bug potential that needs to be fixed.
+** If a string is 1, or 4 bytes, decoding the row could lead to a string being treated as an i8/i32.
+// TODO
 row byte information:
 {
 (byte 0) header size: total size of the row header in bytes

@@ -1,7 +1,10 @@
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 
-use crate::core::{FieldTypesAllowed, PAGE_SIZE, QueryObject, TableMetadataObject, ValueTypes};
+use crate::core::{
+    FieldTypesAllowed, Operand, PAGE_SIZE, QueryObject, TableMetadataObject, ValueTypes,
+    VariableReturn,
+};
 
 pub fn get_selected_column_ids(
     query: &QueryObject,
@@ -211,10 +214,63 @@ pub fn should_delete_row(
     column_ids: Vec<u8>,
 ) -> Result<bool, String> {
     println!("{}", query);
+    let mut curr_column_in_vec: u16 = 0;
+    for condition in &query.conditions {
+        println!("{:?}", condition);
+
+        if condition.object_one_is_field && condition.object_two_is_field {
+            let curr_col_1 = column_ids[curr_column_in_vec as usize];
+            curr_column_in_vec += 1;
+            let curr_col_2 = column_ids[curr_column_in_vec as usize];
+            curr_column_in_vec += 1;
+
+            let value_1: VariableReturn = get_value_by_column_id(row_bytes, curr_col_1)?;
+            let value_2: VariableReturn = get_value_by_column_id(row_bytes, curr_col_2)?;
+
+            let should_delete = match condition.operand {
+                Operand::EQ => value_1 == value_2,
+                Operand::NQ => value_1 != value_2,
+                Operand::GT => value_1 > value_2,
+                Operand::LT => value_1 < value_2,
+                Operand::GTE => value_1 >= value_2,
+                Operand::LTE => value_1 <= value_2,
+            };
+        }
+    }
 
     println!("{:?}", row_bytes);
 
     println!("{:?}", column_ids);
 
     return Ok(true);
+}
+
+pub fn get_value_by_column_id(row_bytes: &[u8], curr_col: u8) -> Result<VariableReturn, String> {
+    let header_size = row_bytes[0] as usize;
+    let num_columns = row_bytes[1] as usize;
+
+    let col = curr_col as usize;
+    if col >= num_columns {
+        return Err(format!("Column {} out of range ({})", col, num_columns));
+    }
+
+    let col_len = row_bytes[2 + col] as usize;
+
+    let data_start = header_size
+        + row_bytes[2..2 + col]
+            .iter()
+            .map(|&b| b as usize)
+            .sum::<usize>();
+
+    let col_bytes = &row_bytes[data_start..data_start + col_len];
+
+    match col_len {
+        1 => Ok(VariableReturn::I8(col_bytes[0] as i8)),
+        4 => Ok(VariableReturn::I32(i32::from_le_bytes(
+            col_bytes.try_into().unwrap(),
+        ))),
+        _ => Ok(VariableReturn::String(
+            String::from_utf8(col_bytes.to_vec()).map_err(|e| format!("Invalid UTF-8: {}", e))?,
+        )),
+    }
 }
