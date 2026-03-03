@@ -5,6 +5,7 @@ pub enum Filter {
     FROM,
     WHERE,
     AND,
+    OR,
 }
 
 impl Filter {
@@ -13,6 +14,7 @@ impl Filter {
             "from" => Some(Filter::FROM),
             "where" => Some(Filter::WHERE),
             "and" => Some(Filter::AND),
+            "or" => Some(Filter::OR),
             _ => None,
         }
     }
@@ -24,6 +26,7 @@ impl fmt::Display for Filter {
             Filter::FROM => write!(f, "FROM"),
             Filter::WHERE => write!(f, "WHERE"),
             Filter::AND => write!(f, "AND"),
+            Filter::OR => write!(f, "OR"),
         }
     }
 }

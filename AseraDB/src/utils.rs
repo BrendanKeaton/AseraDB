@@ -82,7 +82,8 @@ fn match_filter(
 ) -> Result<bool, &'static str> {
     match filter {
         Filter::FROM => handle_from(tokens, query),
-        Filter::WHERE => handle_where(tokens, query),
-        Filter::AND => handle_where(tokens, query),
+        Filter::WHERE => handle_where(tokens, query, "where"),
+        Filter::AND => handle_where(tokens, query, "and"),
+        Filter::OR => handle_where(tokens, query, "or"),
     }
 }

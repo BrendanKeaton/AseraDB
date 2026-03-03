@@ -3,7 +3,7 @@ use crate::core::ConditionsObject;
 pub use crate::parsing::utils::get_table_schema;
 use crate::utils::classify_token;
 use crate::{
-    core::{Command, QueryObject, TokenType, ValueTypes},
+    core::{Command, LogicalConnector, QueryObject, TokenType, ValueTypes},
     parsing::utils::get_field_names,
 };
 
@@ -95,19 +95,29 @@ pub fn handle_insert(tokens: &[&str], query: &mut QueryObject) -> Result<bool, S
     return Ok(true);
 }
 
-pub fn handle_where(tokens: &[&str], query: &mut QueryObject) -> Result<bool, &'static str> {
+pub fn handle_where(
+    tokens: &[&str],
+    query: &mut QueryObject,
+    cmd: &str,
+) -> Result<bool, &'static str> {
     if tokens[query.index].to_owned() == "and" && query.conditions.len() == 0 {
         query.index += 1;
         return Err("Malformed request. Please use where statement before 'and'. ");
     }
 
-    query.index += 1; // Move passed "WHERE", and dont save to query object direclty. If its "AND", and passed above check, same deal
+    query.index += 1; // Move passed "WHERE", and dont save to query object direclty. If its "AND"/"OR", and passed above check, same deal
 
     let table = get_field_names(&query.table)?;
 
     let curr_token = tokens[query.index].to_owned();
 
     let mut conditions: ConditionsObject = ConditionsObject::default();
+
+    if cmd == "or" {
+        conditions.connector = Some(LogicalConnector::Or);
+    } else if cmd == "and" {
+        conditions.connector = Some(LogicalConnector::And);
+    }
 
     if table.contains(&curr_token) {
         conditions.object_one_is_field = true;

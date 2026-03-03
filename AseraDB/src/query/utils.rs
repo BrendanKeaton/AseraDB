@@ -2,8 +2,8 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 
 use crate::core::{
-    FieldTypesAllowed, Operand, PAGE_SIZE, QueryObject, TableMetadataObject, ValueTypes,
-    VariableReturn,
+    ConditionsObject, FieldTypesAllowed, LogicalConnector, Operand, PAGE_SIZE, QueryObject,
+    TableMetadataObject, ValueTypes, VariableReturn,
 };
 use crate::query::delete;
 
@@ -218,87 +218,87 @@ pub fn should_delete_row(
     query: &QueryObject,
     column_ids: Vec<u8>,
 ) -> Result<bool, String> {
-    //println!("{}", query);
-    for condition in &query.conditions {
-        println!("{:?}", condition);
+    let mut result = true;
+    let mut col_index: usize = 0;
 
-        let mut curr_column_in_vec: usize = 0;
+    for (i, condition) in query.conditions.iter().enumerate() {
+        let matches = evaluate_condition(condition, row_bytes, &column_ids, &mut col_index)?;
 
-        let mut should_delete: bool = false;
-
-        if condition.object_one_is_field && condition.object_two_is_field {
-            let curr_col_1 = column_ids[curr_column_in_vec as usize];
-            curr_column_in_vec += 1;
-            let curr_col_2 = column_ids[curr_column_in_vec as usize];
-            curr_column_in_vec += 1;
-
-            let value_1: VariableReturn = get_value_by_column_id(row_bytes, curr_col_1)?;
-            let value_2: VariableReturn = get_value_by_column_id(row_bytes, curr_col_2)?;
-
-            should_delete = match condition.operand {
-                Operand::EQ => value_1 == value_2,
-                Operand::NQ => value_1 != value_2,
-                Operand::GT => value_1 > value_2,
-                Operand::LT => value_1 < value_2,
-                Operand::GTE => value_1 >= value_2,
-                Operand::LTE => value_1 <= value_2,
-            };
-        } else if !condition.object_one_is_field && !condition.object_two_is_field {
-            return Err("At least one side of a where statement needs to a column".to_owned());
+        if i == 0 {
+            result = matches;
         } else {
-            let curr_col = column_ids[curr_column_in_vec as usize];
-            curr_column_in_vec += 1;
-            let value: VariableReturn = get_value_by_column_id(row_bytes, curr_col)?;
-
-            let (field_val, literal_str) = if condition.object_one_is_field {
-                (&value, &condition.object_two)
-            } else {
-                (&value, &condition.object_one)
-            };
-
-            let literal = match field_val {
-                VariableReturn::I8(_) => VariableReturn::I8(
-                    literal_str
-                        .parse::<i8>()
-                        .map_err(|_| format!("'{}' is not a valid i8", literal_str))?,
-                ),
-                VariableReturn::I32(_) => VariableReturn::I32(
-                    literal_str
-                        .parse::<i32>()
-                        .map_err(|_| format!("'{}' is not a valid i32", literal_str))?,
-                ),
-                VariableReturn::String(_) => VariableReturn::String(literal_str.clone()),
-            };
-
-            if condition.object_one_is_field {
-                should_delete = match condition.operand {
-                    Operand::EQ => value == literal,
-                    Operand::NQ => value != literal,
-                    Operand::GT => value > literal,
-                    Operand::LT => value < literal,
-                    Operand::GTE => value >= literal,
-                    Operand::LTE => value <= literal,
-                };
-            } else {
-                should_delete = match condition.operand {
-                    Operand::EQ => literal == value,
-                    Operand::NQ => literal != value,
-                    Operand::GT => literal > value,
-                    Operand::LT => literal < value,
-                    Operand::GTE => literal >= value,
-                    Operand::LTE => literal <= value,
-                };
+            match &condition.connector {
+                Some(LogicalConnector::Or) => result = result || matches,
+                Some(LogicalConnector::And) | None => result = result && matches,
             }
         }
-
-        return Ok(should_delete);
     }
 
-    //println!("{:?}", row_bytes);
+    Ok(result)
+}
 
-    //println!("{:?}", column_ids);
+fn evaluate_condition(
+    condition: &ConditionsObject,
+    row_bytes: &[u8],
+    column_ids: &[u8],
+    col_index: &mut usize,
+) -> Result<bool, String> {
+    if condition.object_one_is_field && condition.object_two_is_field {
+        let curr_col_1 = column_ids[*col_index];
+        *col_index += 1;
+        let curr_col_2 = column_ids[*col_index];
+        *col_index += 1;
 
-    return Ok(true);
+        let value_1: VariableReturn = get_value_by_column_id(row_bytes, curr_col_1)?;
+        let value_2: VariableReturn = get_value_by_column_id(row_bytes, curr_col_2)?;
+
+        return Ok(compare_values(&value_1, &value_2, &condition.operand));
+    }
+
+    if !condition.object_one_is_field && !condition.object_two_is_field {
+        return Err("At least one side of a where statement needs to be a column".to_owned());
+    }
+
+    let curr_col = column_ids[*col_index];
+    *col_index += 1;
+    let value: VariableReturn = get_value_by_column_id(row_bytes, curr_col)?;
+
+    let literal_str = if condition.object_one_is_field {
+        &condition.object_two
+    } else {
+        &condition.object_one
+    };
+
+    let literal = match &value {
+        VariableReturn::I8(_) => VariableReturn::I8(
+            literal_str
+                .parse::<i8>()
+                .map_err(|_| format!("'{}' is not a valid i8", literal_str))?,
+        ),
+        VariableReturn::I32(_) => VariableReturn::I32(
+            literal_str
+                .parse::<i32>()
+                .map_err(|_| format!("'{}' is not a valid i32", literal_str))?,
+        ),
+        VariableReturn::String(_) => VariableReturn::String(literal_str.clone()),
+    };
+
+    if condition.object_one_is_field {
+        Ok(compare_values(&value, &literal, &condition.operand))
+    } else {
+        Ok(compare_values(&literal, &value, &condition.operand))
+    }
+}
+
+fn compare_values(left: &VariableReturn, right: &VariableReturn, operand: &Operand) -> bool {
+    match operand {
+        Operand::EQ => left == right,
+        Operand::NQ => left != right,
+        Operand::GT => left > right,
+        Operand::LT => left < right,
+        Operand::GTE => left >= right,
+        Operand::LTE => left <= right,
+    }
 }
 
 pub fn get_value_by_column_id(row_bytes: &[u8], curr_col: u8) -> Result<VariableReturn, String> {
