@@ -1,11 +1,11 @@
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::fs::OpenOptions;
+use std::io::{Read, Seek, SeekFrom, Write};
 
 use crate::core::{
-    ConditionsObject, FieldTypesAllowed, LogicalConnector, Operand, PAGE_SIZE, QueryObject,
-    TableMetadataObject, ValueTypes, VariableReturn,
+    ConditionsObject, FieldTypesAllowed, LogicalConnector, Operand, PAGE_HEADER_SLOT_SIZE_FOR_ROW,
+    PAGE_SIZE, QueryObject, TableMetadataObject, ValueTypes, VariableReturn,
 };
-use crate::query::delete;
 
 pub fn get_selected_column_ids(
     query: &QueryObject,
@@ -61,6 +61,7 @@ pub fn parse_sequential(
     let num_pages: u64 = file_len / PAGE_SIZE as u64;
 
     let selected_column_ids = get_selected_column_ids(query, &schema)?;
+    let mut page_modified = false;
 
     for curr_page_id in 0..num_pages {
         file.seek(SeekFrom::Start(curr_page_id * PAGE_SIZE as u64))
@@ -74,7 +75,7 @@ pub fn parse_sequential(
 
         let row_count = page_data[1];
 
-        for row in 0..row_count {
+        for row in (0..row_count).rev() {
             let curr_slot_offset = row * 4 + 11;
             let row_offset = u16::from_le_bytes(
                 page_data[curr_slot_offset as usize..(curr_slot_offset as usize + 2)]
@@ -90,19 +91,39 @@ pub fn parse_sequential(
             let row_start = PAGE_SIZE - row_length as usize - row_offset as usize;
             let row_end = row_start + row_length as usize;
             let row_bytes = &page_data[row_start..row_end];
-            let mut decoded_row: Vec<String> = Vec::new();
+            let decoded_row: Vec<String>;
             if action == "delete" {
                 let selected_conditional_column_ids =
                     get_selected_column_ids_in_conditional(query, &schema)?;
                 let should_delete: bool =
                     should_delete_row(row_bytes, &query, selected_conditional_column_ids)?;
-                println!("{:?}, should delete? {}", decoded_row, should_delete);
                 if should_delete {
-                    //let _ = delete_row(row_start, row_end, &file, &query)?;
+                    delete_row(&mut page_data, row, row_length)?;
+                    page_modified = true;
                 }
             } else {
                 decoded_row = decode_row(row_bytes, &schema, &selected_column_ids)?;
+                println!("{:?}", decoded_row);
             }
+        }
+
+        if page_modified {
+            let schema_path = format!("database/tables/{}.asera", &query.table);
+            let mut write_file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&schema_path)
+                .map_err(|e| e.to_string())?;
+
+            write_file
+                .seek(SeekFrom::Start(curr_page_id * PAGE_SIZE as u64))
+                .map_err(|e| e.to_string())?;
+            write_file
+                .write_all(&page_data)
+                .map_err(|e| e.to_string())?;
+            write_file.flush().map_err(|e| e.to_string())?;
+
+            page_modified = false;
         }
     }
 
@@ -205,12 +226,36 @@ pub fn build_row_byte(
 }
 
 pub fn delete_row(
-    row_start: usize,
-    row_end: usize,
-    file: &File,
-    query: &QueryObject,
+    page_data: &mut [u8; PAGE_SIZE],
+    row_index: u8,
+    row_length: u16,
 ) -> Result<(), String> {
-    return Ok(());
+    page_data[1] -= 1;
+
+    let current_freed = u16::from_le_bytes(page_data[9..11].try_into().unwrap());
+    let new_freed = current_freed + row_length;
+    page_data[9..11].copy_from_slice(&new_freed.to_le_bytes());
+
+    let current_header_size = u16::from_le_bytes(page_data[7..9].try_into().unwrap());
+
+    let slot_start = 11 + (row_index as usize) * 4;
+    let slots_end = current_header_size as usize;
+
+    if slot_start + 4 < slots_end {
+        page_data.copy_within(slot_start + 4..slots_end, slot_start);
+    }
+
+    let new_slots_end = slots_end - 4;
+    page_data[new_slots_end..slots_end].fill(0);
+
+    let new_header_size = current_header_size - PAGE_HEADER_SLOT_SIZE_FOR_ROW as u16;
+    page_data[7..9].copy_from_slice(&new_header_size.to_le_bytes());
+
+    let current_space = u16::from_le_bytes(page_data[4..6].try_into().unwrap());
+    let new_space = current_space + PAGE_HEADER_SLOT_SIZE_FOR_ROW as u16;
+    page_data[4..6].copy_from_slice(&new_space.to_le_bytes());
+
+    Ok(())
 }
 
 pub fn should_delete_row(
